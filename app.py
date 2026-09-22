@@ -1,9 +1,9 @@
 """
 RF & Electronic Components Catalog
 -----------------------------------
-A Streamlit application for browsing, filtering and comparing RF and
-electronic components, styled after industrial parametric catalogs
-(e.g. Analog Devices / Mini-Circuits parametric search tools).
+A Streamlit application styled after the Analog Devices website and
+parametric catalog: clean white background, deep-blue header/accents,
+a prominent hero search bar, and category cards.
 
 Data is loaded from an external CSV file (default: components_data.csv),
 so the catalog (stock, pricing, specs) can be updated without touching
@@ -31,9 +31,6 @@ st.set_page_config(
 
 CSV_PATH = Path("components_data.csv")
 
-# "Core" columns the app knows how to build dedicated filters for.
-# Any extra columns present in the CSV are still shown automatically
-# in the table and in the detail card.
 NUMERIC_RANGE_COLUMNS = {
     "Gain_dB": "Gain [dB]",
     "NF_dB": "Noise Figure [dB]",
@@ -46,123 +43,233 @@ NUMERIC_RANGE_COLUMNS = {
 FREQ_MIN_COL = "Frequency_Min_GHz"
 FREQ_MAX_COL = "Frequency_Max_GHz"
 
+# Quick-browse category tiles shown on the "home" hero section.
+# `match` is a case-insensitive substring matched against the Category column,
+# so it still works even if your CSV uses slightly different category names.
+QUICK_CATEGORIES = [
+    {"icon": "📶", "label": "Amplifiers", "match": "amplifier"},
+    {"icon": "🔀", "label": "Mixers", "match": "mixer"},
+    {"icon": "🔁", "label": "RF Switches", "match": "switch"},
+    {"icon": "🔄", "label": "Converters", "match": "converter"},
+    {"icon": "🎛", "label": "Filters", "match": "filter"},
+    {"icon": "📉", "label": "Attenuators", "match": "attenuator"},
+]
+
 # --------------------------------------------------------------------------
-# Theme / styling — dark, industrial, ADI-inspired
+# Theme / styling — light background, deep Analog-blue accents
 # --------------------------------------------------------------------------
-ACCENT = "#00A9E0"       # signal-blue accent
-ACCENT_DIM = "#0B6E96"
-BG_PANEL = "#12161C"
-BG_CARD = "#171C24"
-BORDER = "#262C36"
-TEXT_MUTED = "#8B93A1"
+PRIMARY_BLUE = "#00355F"     # deep navy — header, headings
+ACCENT_BLUE = "#0072CE"      # bright signal blue — buttons, links, highlights
+ACCENT_BLUE_LIGHT = "#E6F2FC"  # pale blue tint for hero/backgrounds
+BORDER = "#D6DEE6"
+TEXT_DARK = "#1A2733"
+TEXT_MUTED = "#5B6B7B"
+BG_PAGE = "#FFFFFF"
+BG_CARD = "#FFFFFF"
 
 st.markdown(
     f"""
     <style>
         html, body, [class*="css"] {{
-            font-family: "Inter", "Segoe UI", -apple-system, sans-serif;
+            font-family: "Segoe UI", "Inter", -apple-system, sans-serif;
+            color: {TEXT_DARK};
         }}
-
+        .stApp {{
+            background-color: {BG_PAGE};
+        }}
         .block-container {{
-            padding-top: 1.4rem;
+            padding-top: 1rem;
             padding-bottom: 3rem;
             max-width: 1500px;
         }}
 
-        /* ---- Top banner ---- */
-        .catalog-header {{
+        /* ---- Top header bar (logo strip) ---- */
+        .adi-topbar {{
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 18px 26px;
-            background: linear-gradient(90deg, {BG_PANEL} 0%, #0D1117 100%);
-            border: 1px solid {BORDER};
-            border-left: 4px solid {ACCENT};
-            border-radius: 10px;
-            margin-bottom: 1.4rem;
+            background-color: {PRIMARY_BLUE};
+            padding: 14px 30px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
         }}
-        .catalog-header h1 {{
-            font-size: 1.55rem;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            margin: 0;
-            color: #E8EBF0;
-        }}
-        .catalog-header p {{
-            margin: 2px 0 0 0;
-            color: {TEXT_MUTED};
-            font-size: 0.88rem;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-        }}
-        .catalog-badge {{
-            background: rgba(0, 169, 224, 0.12);
-            border: 1px solid {ACCENT_DIM};
-            color: {ACCENT};
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 0.78rem;
-            font-weight: 600;
+        .adi-logo {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #FFFFFF;
+            font-size: 1.3rem;
+            font-weight: 800;
             letter-spacing: 0.5px;
+        }}
+        .adi-logo span.dot {{
+            color: {ACCENT_BLUE};
+            font-size: 1.6rem;
+            line-height: 0;
+        }}
+        .adi-nav {{
+            display: flex;
+            gap: 26px;
+            color: #CFE4F7;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
             text-transform: uppercase;
+        }}
+
+        /* ---- Hero / search section ---- */
+        .adi-hero {{
+            background: linear-gradient(180deg, {ACCENT_BLUE_LIGHT} 0%, #FFFFFF 100%);
+            border: 1px solid {BORDER};
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 34px 30px 26px 30px;
+            margin-bottom: 1.8rem;
+            text-align: center;
+        }}
+        .adi-hero h1 {{
+            color: {PRIMARY_BLUE};
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }}
+        .adi-hero p {{
+            color: {TEXT_MUTED};
+            font-size: 1rem;
+            margin-bottom: 0;
+        }}
+
+        /* Search input styling */
+        div[data-testid="stTextInput"] input {{
+            border: 2px solid {ACCENT_BLUE} !important;
+            border-radius: 24px !important;
+            padding: 10px 20px !important;
+            font-size: 1.05rem !important;
+            box-shadow: 0 2px 8px rgba(0, 53, 95, 0.08);
+        }}
+        div[data-testid="stTextInput"] input:focus {{
+            box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.25);
+        }}
+
+        /* ---- Category tiles ---- */
+        .cat-card {{
+            background-color: {BG_CARD};
+            border: 1px solid {BORDER};
+            border-radius: 12px;
+            padding: 18px 10px;
+            text-align: center;
+            transition: all 0.15s ease-in-out;
+        }}
+        .cat-icon {{
+            font-size: 2rem;
+            margin-bottom: 6px;
+        }}
+        .cat-label {{
+            font-weight: 700;
+            color: {PRIMARY_BLUE};
+            font-size: 0.92rem;
+        }}
+        div[data-testid="column"] .stButton button {{
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid {BORDER};
+            background-color: {BG_CARD};
+            color: {PRIMARY_BLUE};
+            font-weight: 700;
+            padding: 18px 4px;
+        }}
+        div[data-testid="column"] .stButton button:hover {{
+            border-color: {ACCENT_BLUE};
+            background-color: {ACCENT_BLUE_LIGHT};
+            color: {ACCENT_BLUE};
+        }}
+
+        /* ---- Generic buttons ---- */
+        .stButton > button, .stDownloadButton > button, .stLinkButton > a {{
+            border-radius: 24px;
+            font-weight: 600;
+        }}
+        .stDownloadButton > button, .stLinkButton > a {{
+            background-color: {ACCENT_BLUE};
+            color: #FFFFFF;
+            border: none;
+        }}
+        .stDownloadButton > button:hover, .stLinkButton > a:hover {{
+            background-color: {PRIMARY_BLUE};
+            color: #FFFFFF;
         }}
 
         /* ---- Sidebar ---- */
         section[data-testid="stSidebar"] {{
+            background-color: #F7FAFC;
             border-right: 1px solid {BORDER};
-        }}
-        section[data-testid="stSidebar"] .block-container {{
-            padding-top: 1.2rem;
         }}
         .sidebar-section-title {{
             font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 1.2px;
+            font-weight: 800;
+            letter-spacing: 1.1px;
             text-transform: uppercase;
-            color: {ACCENT};
-            margin: 1.1rem 0 0.3rem 0;
-            border-bottom: 1px solid {BORDER};
+            color: {ACCENT_BLUE};
+            margin: 1.1rem 0 0.4rem 0;
+            border-bottom: 2px solid {ACCENT_BLUE_LIGHT};
             padding-bottom: 6px;
         }}
 
         /* ---- Metric tiles ---- */
         div[data-testid="stMetric"] {{
-            background: {BG_CARD};
+            background: #F7FAFC;
             border: 1px solid {BORDER};
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 12px 16px 8px 16px;
         }}
         div[data-testid="stMetricLabel"] {{
             font-size: 0.72rem;
-            letter-spacing: 0.6px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
             color: {TEXT_MUTED};
         }}
         div[data-testid="stMetricValue"] {{
-            font-size: 1.55rem;
-            color: #E8EBF0;
+            font-size: 1.5rem;
+            color: {PRIMARY_BLUE};
+        }}
+
+        h2, h3 {{
+            color: {PRIMARY_BLUE} !important;
         }}
 
         /* ---- Table ---- */
         .stDataFrame {{
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
             border: 1px solid {BORDER};
         }}
 
+        /* ---- Active filter chip ---- */
+        .active-chip {{
+            display: inline-block;
+            background-color: {ACCENT_BLUE_LIGHT};
+            border: 1px solid {ACCENT_BLUE};
+            color: {ACCENT_BLUE};
+            padding: 4px 14px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }}
+
         /* ---- Detail card ---- */
         .detail-card {{
-            background: {BG_CARD};
+            background: #FFFFFF;
             border: 1px solid {BORDER};
-            border-left: 4px solid {ACCENT};
-            border-radius: 10px;
-            padding: 22px 26px;
+            border-left: 5px solid {ACCENT_BLUE};
+            border-radius: 12px;
+            padding: 24px 28px;
+            box-shadow: 0 2px 10px rgba(0, 53, 95, 0.06);
         }}
         .detail-title {{
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             font-weight: 800;
-            letter-spacing: 0.3px;
-            color: #F1F3F6;
+            color: {PRIMARY_BLUE};
             margin-bottom: 2px;
         }}
         .detail-sub {{
@@ -172,34 +279,34 @@ st.markdown(
         }}
         .spec-label {{
             font-size: 0.68rem;
-            letter-spacing: 0.6px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
             color: {TEXT_MUTED};
             margin-bottom: 2px;
         }}
         .spec-value {{
             font-size: 1.05rem;
-            font-weight: 600;
-            color: #E8EBF0;
+            font-weight: 700;
+            color: {TEXT_DARK};
             margin-bottom: 14px;
         }}
         .stock-pill-in {{
-            background-color: rgba(46, 194, 126, 0.14);
+            background-color: #E6F7EE;
             border: 1px solid #2ec27e;
-            color: #6fe3ab;
+            color: #1a8a54;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 0.8rem;
-            font-weight: 600;
+            font-weight: 700;
         }}
         .stock-pill-out {{
-            background-color: rgba(224, 60, 60, 0.14);
+            background-color: #FDECEC;
             border: 1px solid #e03c3c;
-            color: #ff8a8a;
+            color: #c0302f;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 0.8rem;
-            font-weight: 600;
+            font-weight: 700;
         }}
 
         footer {{visibility: hidden;}}
@@ -214,12 +321,9 @@ st.markdown(
 # --------------------------------------------------------------------------
 @st.cache_data(show_spinner="Loading component database...")
 def load_data(path: Path, mtime: float) -> pd.DataFrame:
-    """Loads the CSV file. The `mtime` argument is only used to bust the
-    Streamlit cache automatically whenever the underlying file changes."""
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]
 
-    # Lenient numeric coercion so a slightly messy CSV doesn't crash the app
     for col in list(NUMERIC_RANGE_COLUMNS.keys()) + [FREQ_MIN_COL, FREQ_MAX_COL, "Stock_Qty"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -265,31 +369,82 @@ else:
 
 df = df_raw.copy()
 
+if "quick_category" not in st.session_state:
+    st.session_state["quick_category"] = None
+
 # --------------------------------------------------------------------------
-# Sidebar — filters
+# Top bar + Hero section (Analog Devices "home page" feel)
 # --------------------------------------------------------------------------
-st.sidebar.markdown(
-    "<div style='font-size:1.05rem; font-weight:800; letter-spacing:0.5px;'>⚙ PARAMETRIC SEARCH</div>",
+st.markdown(
+    """
+    <div class="adi-topbar">
+        <div class="adi-logo"><span class="dot">◆</span> ANALOG&nbsp;PARTS&nbsp;CATALOG</div>
+        <div class="adi-nav">
+            <span>Amplifiers</span><span>RF&nbsp;&amp;&nbsp;Microwave</span>
+            <span>Converters</span><span>Support</span>
+        </div>
+    </div>
+    <div class="adi-hero">
+        <h1>Find the Right Component, Faster</h1>
+        <p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
-st.sidebar.caption("Narrow down the catalog using the filters below.")
+
+hero_search_col1, hero_search_col2, hero_search_col3 = st.columns([1, 3, 1])
+with hero_search_col2:
+    hero_search = st.text_input(
+        "Search",
+        key="filt_search",
+        placeholder="🔍  Search by part number, keyword or description (e.g. \"LNA\", \"2.4 GHz\", \"low noise\")",
+        label_visibility="collapsed",
+    )
+
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+st.markdown(
+    f"<div style='text-align:center; color:{TEXT_MUTED}; font-weight:700; "
+    "letter-spacing:0.5px; text-transform:uppercase; font-size:0.8rem; margin-bottom:10px;'>"
+    "Browse by Category</div>",
+    unsafe_allow_html=True,
+)
+
+cat_cols = st.columns(len(QUICK_CATEGORIES))
+for col, cat in zip(cat_cols, QUICK_CATEGORIES):
+    with col:
+        if st.button(f"{cat['icon']}\n\n{cat['label']}", key=f"quickcat_{cat['label']}", use_container_width=True):
+            st.session_state["quick_category"] = cat["match"]
+
+if st.session_state["quick_category"]:
+    chip_col1, chip_col2 = st.columns([5, 1])
+    with chip_col1:
+        st.markdown(
+            f"<span class='active-chip'>Category filter: {st.session_state['quick_category'].title()} ✕</span>",
+            unsafe_allow_html=True,
+        )
+    with chip_col2:
+        if st.button("Clear category", key="clear_quickcat"):
+            st.session_state["quick_category"] = None
+            st.rerun()
+
+st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------
+# Sidebar — advanced filters
+# --------------------------------------------------------------------------
+st.sidebar.markdown(
+    f"<div style='font-size:1.05rem; font-weight:800; letter-spacing:0.4px; color:{PRIMARY_BLUE};'>⚙ ADVANCED FILTERS</div>",
+    unsafe_allow_html=True,
+)
+st.sidebar.caption("Refine the catalog using the parameters below.")
 
 if st.sidebar.button("↺ Reset all filters", use_container_width=True):
     for key in list(st.session_state.keys()):
         if key.startswith("filt_"):
             del st.session_state[key]
+    st.session_state["quick_category"] = None
     st.rerun()
 
-# --- Free-text search ---
-st.sidebar.markdown("<div class='sidebar-section-title'>Quick Search</div>", unsafe_allow_html=True)
-search_text = st.sidebar.text_input(
-    "Part Number / Description",
-    key="filt_search",
-    placeholder="e.g. LNA-2440 or Low Noise Amplifier",
-    label_visibility="collapsed",
-)
-
-# --- Category / Manufacturer / Package ---
 st.sidebar.markdown("<div class='sidebar-section-title'>Classification</div>", unsafe_allow_html=True)
 
 if "Category" in df.columns:
@@ -310,7 +465,6 @@ if "Package" in df.columns:
 else:
     selected_packages = []
 
-# --- Stock availability ---
 st.sidebar.markdown("<div class='sidebar-section-title'>Availability</div>", unsafe_allow_html=True)
 stock_filter = st.sidebar.radio(
     "Stock status",
@@ -319,7 +473,6 @@ stock_filter = st.sidebar.radio(
     label_visibility="collapsed",
 )
 
-# --- Frequency range ---
 freq_selected_range = None
 if FREQ_MIN_COL in df.columns and FREQ_MAX_COL in df.columns:
     st.sidebar.markdown("<div class='sidebar-section-title'>Frequency Range (GHz)</div>", unsafe_allow_html=True)
@@ -334,7 +487,6 @@ if FREQ_MIN_COL in df.columns and FREQ_MAX_COL in df.columns:
         label_visibility="collapsed",
     )
 
-# --- Other numeric parameters ---
 numeric_selected_ranges = {}
 active_numeric_cols = [c for c in NUMERIC_RANGE_COLUMNS if c in df.columns and df[c].notna().any()]
 if active_numeric_cols:
@@ -358,13 +510,16 @@ if active_numeric_cols:
 # --------------------------------------------------------------------------
 filtered = df.copy()
 
-if search_text:
+if hero_search:
     text_cols = [c for c in ["Part_Number", "Description"] if c in filtered.columns]
     if text_cols:
         mask = pd.Series(False, index=filtered.index)
         for c in text_cols:
-            mask |= filtered[c].str.contains(search_text, case=False, na=False)
+            mask |= filtered[c].str.contains(hero_search, case=False, na=False)
         filtered = filtered[mask]
+
+if st.session_state["quick_category"] and "Category" in filtered.columns:
+    filtered = filtered[filtered["Category"].str.contains(st.session_state["quick_category"], case=False, na=False)]
 
 if selected_categories:
     filtered = filtered[filtered["Category"].isin(selected_categories)]
@@ -389,22 +544,6 @@ if freq_selected_range is not None:
 
 for col, (lo_sel, hi_sel) in numeric_selected_ranges.items():
     filtered = filtered[filtered[col].isna() | filtered[col].between(lo_sel, hi_sel)]
-
-# --------------------------------------------------------------------------
-# Header banner
-# --------------------------------------------------------------------------
-st.markdown(
-    f"""
-    <div class="catalog-header">
-        <div>
-            <h1>📡 RF & Electronic Components Catalog</h1>
-            <p>Parametric Search · Stock Availability · Technical Datasheets</p>
-        </div>
-        <div class="catalog-badge">Live Inventory</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 # --------------------------------------------------------------------------
 # Summary metrics
@@ -526,7 +665,6 @@ else:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Action row: datasheet link + single-part CSV export
         st.markdown("<br>", unsafe_allow_html=True)
         action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
 
