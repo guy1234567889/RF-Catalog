@@ -1,0 +1,11 @@
+Part_Number,Category,Manufacturer,Description,Frequency_Min_GHz,Frequency_Max_GHz,Gain_dB,NF_dB,P1dB_dBm,OIP3_dBm,Supply_Voltage_V,Package,Stock_Qty,Price_USD,Datasheet_URL
+LNA-2440,Low Noise Amplifier,Analog Devices,GaAs Low Noise Amplifier 2.4-4.0 GHz,2.4,4.0,18.5,0.9,20.0,35.0,3.3,SOT-89,150,4.25,https://example.com/lna-2440.pdf
+PA-0918,Power Amplifier,Qorvo,High Power PA for ISM band,0.9,1.8,28.0,4.5,33.0,42.0,5.0,QFN-16,0,12.90,https://example.com/pa-0918.pdf
+MIX-0512,Mixer,Mini-Circuits,Double Balanced Mixer,0.5,12.0,-6.5,7.0,17.0,25.0,,SMA Connectorized,42,89.00,https://example.com/mix-0512.pdf
+SW-0106,RF Switch,Analog Devices,SPDT Absorptive Switch,0.1,6.0,-0.8,,30.0,,3.0,QFN-8,320,1.75,https://example.com/sw-0106.pdf
+VCO-1824,VCO,Analog Devices,Voltage Controlled Oscillator,18.0,24.0,,,,,5.0,SMT 5x5mm,0,145.00,https://example.com/vco-1824.pdf
+LNA-0806,Low Noise Amplifier,Skyworks,Broadband LNA,0.8,6.0,20.0,1.2,18.0,32.0,3.3,SOT-363,75,3.10,https://example.com/lna-0806.pdf
+ATT-DSA,Digital Step Attenuator,Analog Devices,6-bit Digital Step Attenuator,0.0,18.0,,,,,3.3,LFCSP-24,210,6.40,https://example.com/att-dsa.pdf
+PA-2440,Power Amplifier,Qorvo,GaN Power Amplifier for 5G,2.4,4.2,26.0,3.8,36.0,44.0,28.0,QFN-24,18,58.00,https://example.com/pa-2440.pdf
+MIX-2440,Mixer,Analog Devices,Active Mixer with LO Buffer,2.4,4.4,8.0,9.5,15.0,22.0,5.0,LFCSP-16,0,24.50,https://example.com/mix-2440.pdf
+FLT-BPF24,Filter,Mini-Circuits,Bandpass Filter 2.4 GHz,2.3,2.5,-1.5,,,,,SMA Connectorized,60,15.20,https://example.com/flt-bpf24.pdf
