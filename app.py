@@ -1,13 +1,15 @@
 """
 RF & Electronic Components Catalog
 -----------------------------------
-אפליקציית Streamlit לחיפוש וסינון רכיבי אלקטרוניקה ו-RF פרמטריים,
-בהשראת אתרי קטלוג כמו Analog Devices / Mini-Circuits.
+A Streamlit application for browsing, filtering and comparing RF and
+electronic components, styled after industrial parametric catalogs
+(e.g. Analog Devices / Mini-Circuits parametric search tools).
 
-הנתונים נטענים מקובץ CSV חיצוני (ברירת מחדל: components_data.csv),
-כך שניתן לעדכן מלאי/ביצועים בלי לגעת בקוד.
+Data is loaded from an external CSV file (default: components_data.csv),
+so the catalog (stock, pricing, specs) can be updated without touching
+this code.
 
-הרצה:
+Run:
     streamlit run app.py
 """
 
@@ -18,7 +20,7 @@ import pandas as pd
 import streamlit as st
 
 # --------------------------------------------------------------------------
-# הגדרות כלליות של העמוד
+# Page configuration
 # --------------------------------------------------------------------------
 st.set_page_config(
     page_title="RF & Components Catalog",
@@ -29,54 +31,178 @@ st.set_page_config(
 
 CSV_PATH = Path("components_data.csv")
 
-# עמודות "ליבה" שהאפליקציה יודעת לעבוד איתן. אם הן קיימות בקובץ - נבנה
-# עבורן פילטרים ייעודיים. עמודות נוספות בקובץ יוצגו אוטומטית בטבלה
-# ובכרטיס הפירוט, גם בלי שהאפליקציה "מכירה" אותן במיוחד.
+# "Core" columns the app knows how to build dedicated filters for.
+# Any extra columns present in the CSV are still shown automatically
+# in the table and in the detail card.
 NUMERIC_RANGE_COLUMNS = {
-    "Gain_dB": "רווח (Gain) [dB]",
-    "NF_dB": "רעש (Noise Figure) [dB]",
+    "Gain_dB": "Gain [dB]",
+    "NF_dB": "Noise Figure [dB]",
     "P1dB_dBm": "P1dB [dBm]",
     "OIP3_dBm": "OIP3 [dBm]",
-    "Supply_Voltage_V": "מתח הזנה [V]",
-    "Price_USD": "מחיר [$]",
+    "Supply_Voltage_V": "Supply Voltage [V]",
+    "Price_USD": "Price [$]",
 }
 
 FREQ_MIN_COL = "Frequency_Min_GHz"
 FREQ_MAX_COL = "Frequency_Max_GHz"
 
 # --------------------------------------------------------------------------
-# עיצוב קל (CSS) לתחושה מודרנית ונקייה יותר
+# Theme / styling — dark, industrial, ADI-inspired
 # --------------------------------------------------------------------------
+ACCENT = "#00A9E0"       # signal-blue accent
+ACCENT_DIM = "#0B6E96"
+BG_PANEL = "#12161C"
+BG_CARD = "#171C24"
+BORDER = "#262C36"
+TEXT_MUTED = "#8B93A1"
+
 st.markdown(
-    """
+    f"""
     <style>
-        .block-container {padding-top: 1.5rem; padding-bottom: 2rem;}
-        div[data-testid="stMetricValue"] {font-size: 1.6rem;}
-        .stDataFrame {border-radius: 8px; overflow: hidden;}
-        section[data-testid="stSidebar"] {border-right: 1px solid #2b2f38;}
-        .part-title {
-            font-size: 1.4rem;
+        html, body, [class*="css"] {{
+            font-family: "Inter", "Segoe UI", -apple-system, sans-serif;
+        }}
+
+        .block-container {{
+            padding-top: 1.4rem;
+            padding-bottom: 3rem;
+            max-width: 1500px;
+        }}
+
+        /* ---- Top banner ---- */
+        .catalog-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 26px;
+            background: linear-gradient(90deg, {BG_PANEL} 0%, #0D1117 100%);
+            border: 1px solid {BORDER};
+            border-left: 4px solid {ACCENT};
+            border-radius: 10px;
+            margin-bottom: 1.4rem;
+        }}
+        .catalog-header h1 {{
+            font-size: 1.55rem;
             font-weight: 700;
-            margin-bottom: 0.2rem;
-        }
-        .part-sub {
-            color: #8a8f98;
-            margin-bottom: 1rem;
-        }
-        .stock-badge-in {
-            background-color: #1e4620;
-            color: #7ee787;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-        }
-        .stock-badge-out {
-            background-color: #4a1e1e;
-            color: #ff8080;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-        }
+            letter-spacing: 0.3px;
+            margin: 0;
+            color: #E8EBF0;
+        }}
+        .catalog-header p {{
+            margin: 2px 0 0 0;
+            color: {TEXT_MUTED};
+            font-size: 0.88rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }}
+        .catalog-badge {{
+            background: rgba(0, 169, 224, 0.12);
+            border: 1px solid {ACCENT_DIM};
+            color: {ACCENT};
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }}
+
+        /* ---- Sidebar ---- */
+        section[data-testid="stSidebar"] {{
+            border-right: 1px solid {BORDER};
+        }}
+        section[data-testid="stSidebar"] .block-container {{
+            padding-top: 1.2rem;
+        }}
+        .sidebar-section-title {{
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: {ACCENT};
+            margin: 1.1rem 0 0.3rem 0;
+            border-bottom: 1px solid {BORDER};
+            padding-bottom: 6px;
+        }}
+
+        /* ---- Metric tiles ---- */
+        div[data-testid="stMetric"] {{
+            background: {BG_CARD};
+            border: 1px solid {BORDER};
+            border-radius: 10px;
+            padding: 12px 16px 8px 16px;
+        }}
+        div[data-testid="stMetricLabel"] {{
+            font-size: 0.72rem;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: {TEXT_MUTED};
+        }}
+        div[data-testid="stMetricValue"] {{
+            font-size: 1.55rem;
+            color: #E8EBF0;
+        }}
+
+        /* ---- Table ---- */
+        .stDataFrame {{
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid {BORDER};
+        }}
+
+        /* ---- Detail card ---- */
+        .detail-card {{
+            background: {BG_CARD};
+            border: 1px solid {BORDER};
+            border-left: 4px solid {ACCENT};
+            border-radius: 10px;
+            padding: 22px 26px;
+        }}
+        .detail-title {{
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            color: #F1F3F6;
+            margin-bottom: 2px;
+        }}
+        .detail-sub {{
+            color: {TEXT_MUTED};
+            font-size: 0.95rem;
+            margin-bottom: 14px;
+        }}
+        .spec-label {{
+            font-size: 0.68rem;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: {TEXT_MUTED};
+            margin-bottom: 2px;
+        }}
+        .spec-value {{
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #E8EBF0;
+            margin-bottom: 14px;
+        }}
+        .stock-pill-in {{
+            background-color: rgba(46, 194, 126, 0.14);
+            border: 1px solid #2ec27e;
+            color: #6fe3ab;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }}
+        .stock-pill-out {{
+            background-color: rgba(224, 60, 60, 0.14);
+            border: 1px solid #e03c3c;
+            color: #ff8a8a;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }}
+
+        footer {{visibility: hidden;}}
     </style>
     """,
     unsafe_allow_html=True,
@@ -84,16 +210,16 @@ st.markdown(
 
 
 # --------------------------------------------------------------------------
-# טעינת נתונים
+# Data loading
 # --------------------------------------------------------------------------
-@st.cache_data(show_spinner="טוען נתוני רכיבים...")
+@st.cache_data(show_spinner="Loading component database...")
 def load_data(path: Path, mtime: float) -> pd.DataFrame:
-    """טוען את קובץ ה-CSV. הפרמטר mtime משמש רק כדי לבטל את המטמון
-    אוטומטית כשהקובץ מתעדכן (streamlit מזהה שינוי בפרמטרים ומרענן)."""
+    """Loads the CSV file. The `mtime` argument is only used to bust the
+    Streamlit cache automatically whenever the underlying file changes."""
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]
 
-    # ניקוי/המרות טיפוסים סלחניות - כדי שקובץ CSV "מלוכלך" לא יפיל את האפליקציה
+    # Lenient numeric coercion so a slightly messy CSV doesn't crash the app
     for col in list(NUMERIC_RANGE_COLUMNS.keys()) + [FREQ_MIN_COL, FREQ_MAX_COL, "Stock_Qty"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -121,15 +247,15 @@ def safe_min_max(series: pd.Series, fallback=(0.0, 1.0)):
 
 
 # --------------------------------------------------------------------------
-# בדיקת קיום קובץ הנתונים
+# Load the dataset
 # --------------------------------------------------------------------------
 if not CSV_PATH.exists():
     st.error(
-        f"לא נמצא קובץ הנתונים `{CSV_PATH.name}` בתיקיית האפליקציה.\n\n"
-        "צור קובץ CSV בשם הזה (ראה מבנה מומלץ בהודעה שנלוותה לקוד), "
-        "או השתמש בכפתור להעלאת קובץ למטה."
+        f"Data file `{CSV_PATH.name}` was not found in the application folder.\n\n"
+        "Create a CSV file with this name (see the recommended schema), "
+        "or upload one below for a one-off preview."
     )
-    uploaded = st.file_uploader("או העלה קובץ CSV להצגה חד-פעמית", type=["csv"])
+    uploaded = st.file_uploader("Upload a CSV file", type=["csv"])
     if uploaded is None:
         st.stop()
     df_raw = pd.read_csv(uploaded)
@@ -140,83 +266,81 @@ else:
 df = df_raw.copy()
 
 # --------------------------------------------------------------------------
-# Sidebar - פילטרים
+# Sidebar — filters
 # --------------------------------------------------------------------------
-st.sidebar.title("🔎 סינון וחיפוש")
+st.sidebar.markdown(
+    "<div style='font-size:1.05rem; font-weight:800; letter-spacing:0.5px;'>⚙ PARAMETRIC SEARCH</div>",
+    unsafe_allow_html=True,
+)
+st.sidebar.caption("Narrow down the catalog using the filters below.")
 
-if st.sidebar.button("↺ איפוס כל הפילטרים", use_container_width=True):
+if st.sidebar.button("↺ Reset all filters", use_container_width=True):
     for key in list(st.session_state.keys()):
         if key.startswith("filt_"):
             del st.session_state[key]
     st.rerun()
 
-# --- חיפוש טקסט חופשי ---
+# --- Free-text search ---
+st.sidebar.markdown("<div class='sidebar-section-title'>Quick Search</div>", unsafe_allow_html=True)
 search_text = st.sidebar.text_input(
-    "חיפוש חופשי (מק״ט / תיאור)",
+    "Part Number / Description",
     key="filt_search",
-    placeholder="לדוגמה: LNA-2400 או Low Noise Amplifier",
+    placeholder="e.g. LNA-2440 or Low Noise Amplifier",
+    label_visibility="collapsed",
 )
 
-st.sidebar.markdown("---")
+# --- Category / Manufacturer / Package ---
+st.sidebar.markdown("<div class='sidebar-section-title'>Classification</div>", unsafe_allow_html=True)
 
-# --- קטגוריה ---
 if "Category" in df.columns:
     categories = sorted(df["Category"].dropna().unique().tolist())
-    selected_categories = st.sidebar.multiselect(
-        "קטגוריה", options=categories, key="filt_category"
-    )
+    selected_categories = st.sidebar.multiselect("Category", options=categories, key="filt_category")
 else:
     selected_categories = []
 
-# --- יצרן ---
 if "Manufacturer" in df.columns:
     manufacturers = sorted(df["Manufacturer"].dropna().unique().tolist())
-    selected_manufacturers = st.sidebar.multiselect(
-        "יצרן", options=manufacturers, key="filt_manufacturer"
-    )
+    selected_manufacturers = st.sidebar.multiselect("Manufacturer", options=manufacturers, key="filt_manufacturer")
 else:
     selected_manufacturers = []
 
-# --- Package ---
 if "Package" in df.columns:
     packages = sorted(df["Package"].dropna().unique().tolist())
-    selected_packages = st.sidebar.multiselect(
-        "חבילה (Package)", options=packages, key="filt_package"
-    )
+    selected_packages = st.sidebar.multiselect("Package", options=packages, key="filt_package")
 else:
     selected_packages = []
 
-st.sidebar.markdown("---")
-
-# --- זמינות במלאי ---
+# --- Stock availability ---
+st.sidebar.markdown("<div class='sidebar-section-title'>Availability</div>", unsafe_allow_html=True)
 stock_filter = st.sidebar.radio(
-    "זמינות במלאי",
-    options=["הכל", "רק במלאי", "רק אזל מהמלאי"],
-    horizontal=False,
+    "Stock status",
+    options=["All", "In Stock Only", "Out of Stock Only"],
     key="filt_stock",
+    label_visibility="collapsed",
 )
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("טווח תדרים (GHz)")
-
+# --- Frequency range ---
 freq_selected_range = None
 if FREQ_MIN_COL in df.columns and FREQ_MAX_COL in df.columns:
+    st.sidebar.markdown("<div class='sidebar-section-title'>Frequency Range (GHz)</div>", unsafe_allow_html=True)
     combined_freq = pd.concat([df[FREQ_MIN_COL], df[FREQ_MAX_COL]])
     f_lo, f_hi = safe_min_max(combined_freq, fallback=(0.0, 40.0))
     freq_selected_range = st.sidebar.slider(
-        "כלול רכיבים שהתדר שלהם חופף לטווח:",
+        "Include parts overlapping this range",
         min_value=round(f_lo, 3),
         max_value=round(f_hi, 3),
         value=(round(f_lo, 3), round(f_hi, 3)),
         key="filt_freq",
+        label_visibility="collapsed",
     )
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("פרמטרים נוספים")
-
+# --- Other numeric parameters ---
 numeric_selected_ranges = {}
-for col, label in NUMERIC_RANGE_COLUMNS.items():
-    if col in df.columns and df[col].notna().any():
+active_numeric_cols = [c for c in NUMERIC_RANGE_COLUMNS if c in df.columns and df[c].notna().any()]
+if active_numeric_cols:
+    st.sidebar.markdown("<div class='sidebar-section-title'>Performance Parameters</div>", unsafe_allow_html=True)
+    for col in active_numeric_cols:
+        label = NUMERIC_RANGE_COLUMNS[col]
         lo, hi = safe_min_max(df[col])
         with st.sidebar.expander(label, expanded=False):
             selected = st.slider(
@@ -230,7 +354,7 @@ for col, label in NUMERIC_RANGE_COLUMNS.items():
             numeric_selected_ranges[col] = selected
 
 # --------------------------------------------------------------------------
-# הפעלת הפילטרים
+# Apply filters
 # --------------------------------------------------------------------------
 filtered = df.copy()
 
@@ -251,49 +375,58 @@ if selected_manufacturers:
 if selected_packages:
     filtered = filtered[filtered["Package"].isin(selected_packages)]
 
-if stock_filter == "רק במלאי":
+if stock_filter == "In Stock Only":
     filtered = filtered[filtered["In_Stock"]]
-elif stock_filter == "רק אזל מהמלאי":
+elif stock_filter == "Out of Stock Only":
     filtered = filtered[~filtered["In_Stock"]]
 
 if freq_selected_range is not None:
     f_min_sel, f_max_sel = freq_selected_range
-    # חפיפה בין טווח התדר של הרכיב לבין הטווח שנבחר
     filtered = filtered[
         (filtered[FREQ_MIN_COL].fillna(-1e9) <= f_max_sel)
         & (filtered[FREQ_MAX_COL].fillna(1e9) >= f_min_sel)
     ]
 
 for col, (lo_sel, hi_sel) in numeric_selected_ranges.items():
-    filtered = filtered[
-        filtered[col].isna() | filtered[col].between(lo_sel, hi_sel)
-    ]
+    filtered = filtered[filtered[col].isna() | filtered[col].between(lo_sel, hi_sel)]
 
 # --------------------------------------------------------------------------
-# אזור ראשי - כותרת ומדדים
+# Header banner
 # --------------------------------------------------------------------------
-st.title("📡 קטלוג רכיבי אלקטרוניקה ו-RF")
-st.caption("חיפוש, סינון והשוואה של רכיבים לפי פרמטרים טכניים וזמינות במלאי.")
+st.markdown(
+    f"""
+    <div class="catalog-header">
+        <div>
+            <h1>📡 RF & Electronic Components Catalog</h1>
+            <p>Parametric Search · Stock Availability · Technical Datasheets</p>
+        </div>
+        <div class="catalog-badge">Live Inventory</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
+# --------------------------------------------------------------------------
+# Summary metrics
+# --------------------------------------------------------------------------
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("סה״כ רכיבים בקטלוג", len(df))
-m2.metric("תוצאות מתאימות", len(filtered))
+m1.metric("Total Parts in Catalog", len(df))
+m2.metric("Matching Results", len(filtered))
 if "In_Stock" in filtered.columns:
-    m3.metric("מתוכם במלאי", int(filtered["In_Stock"].sum()))
+    m3.metric("In Stock", int(filtered["In_Stock"].sum()))
 if "Price_USD" in filtered.columns and not filtered.empty:
     avg_price = filtered["Price_USD"].mean()
-    m4.metric("מחיר ממוצע ($)", f"{avg_price:,.2f}" if pd.notna(avg_price) else "—")
+    m4.metric("Avg. Price (USD)", f"${avg_price:,.2f}" if pd.notna(avg_price) else "—")
 
-st.markdown("### תוצאות")
+st.markdown("###  ")
+st.subheader("Search Results")
 
 if filtered.empty:
-    st.warning("לא נמצאו רכיבים התואמים לסינון הנוכחי. נסה להרחיב את הטווחים או לנקות פילטרים.")
+    st.warning("No components match the current filters. Try widening the ranges or clearing filters.")
 else:
     display_df = filtered.copy()
     if "In_Stock" in display_df.columns:
-        display_df["זמינות"] = display_df["In_Stock"].map(
-            {True: "✅ במלאי", False: "❌ אזל"}
-        )
+        display_df["Availability"] = display_df["In_Stock"].map({True: "✅ In Stock", False: "❌ Out of Stock"})
 
     column_order = [
         c
@@ -310,7 +443,7 @@ else:
             "OIP3_dBm",
             "Package",
             "Price_USD",
-            "זמינות",
+            "Availability",
             "Stock_Qty",
         ]
         if c in display_df.columns
@@ -322,73 +455,101 @@ else:
         display_df[column_order],
         use_container_width=True,
         hide_index=True,
-        height=420,
+        height=430,
         on_select="rerun",
         selection_mode="single-row",
         key="results_table",
     )
 
-    # כפתור הורדת התוצאות המסוננות
-    csv_buffer = io.StringIO()
-    filtered.drop(columns=["In_Stock"], errors="ignore").to_csv(csv_buffer, index=False)
-    st.download_button(
-        label="⬇️ הורד תוצאות מסוננות כ-CSV",
-        data=csv_buffer.getvalue(),
-        file_name="filtered_components.csv",
-        mime="text/csv",
-        use_container_width=False,
-    )
+    dl_col, hint_col = st.columns([1, 4])
+    with dl_col:
+        csv_buffer = io.StringIO()
+        filtered.drop(columns=["In_Stock"], errors="ignore").to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="⬇ Download Filtered Results (CSV)",
+            data=csv_buffer.getvalue(),
+            file_name="filtered_components.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with hint_col:
+        st.caption("Click any row in the table above to open its full parametric datasheet below.")
 
     # ----------------------------------------------------------------
-    # אזור פירוט רכיב נבחר
+    # Product Details Card
     # ----------------------------------------------------------------
-    st.markdown("---")
-    st.markdown("### 🧾 פירוט רכיב")
+    st.markdown("###  ")
+    st.subheader("Product Details")
 
     selected_rows = event.selection.rows if event is not None else []
 
     if not selected_rows:
-        st.info("בחר שורה בטבלה למעלה כדי לראות את כל פרטי הרכיב.")
+        st.info("Select a component from the table above to view its full specifications.")
     else:
         sel_idx = filtered.index[selected_rows[0]]
         part = filtered.loc[sel_idx]
 
+        st.markdown("<div class='detail-card'>", unsafe_allow_html=True)
+
         header_col, badge_col = st.columns([4, 1])
         with header_col:
-            title = part.get("Part_Number", "רכיב")
+            title = part.get("Part_Number", "Component")
             desc = part.get("Description", "")
-            st.markdown(f"<div class='part-title'>{title}</div>", unsafe_allow_html=True)
-            if desc:
-                st.markdown(f"<div class='part-sub'>{desc}</div>", unsafe_allow_html=True)
+            manuf = part.get("Manufacturer", "")
+            sub_line = " · ".join([v for v in [manuf, desc] if v])
+            st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
+            if sub_line:
+                st.markdown(f"<div class='detail-sub'>{sub_line}</div>", unsafe_allow_html=True)
         with badge_col:
             if part.get("In_Stock", True):
-                st.markdown(
-                    "<span class='stock-badge-in'>✅ במלאי</span>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("<span class='stock-pill-in'>✅ IN STOCK</span>", unsafe_allow_html=True)
             else:
-                st.markdown(
-                    "<span class='stock-badge-out'>❌ אזל מהמלאי</span>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("<span class='stock-pill-out'>❌ OUT OF STOCK</span>", unsafe_allow_html=True)
 
-        detail_cols = st.columns(3)
-        skip_cols = {"In_Stock"}
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        skip_cols = {"In_Stock", "Part_Number", "Description", "Manufacturer", "Datasheet_URL"}
         items = [(k, v) for k, v in part.items() if k not in skip_cols]
 
+        n_cols = 4
+        spec_cols = st.columns(n_cols)
         for i, (key, value) in enumerate(items):
-            col = detail_cols[i % 3]
-            if pd.isna(value) or value == "":
-                display_value = "—"
-            else:
-                display_value = value
-            col.metric(label=key.replace("_", " "), value=str(display_value))
+            display_value = "—" if (pd.isna(value) or value == "") else str(value)
+            col = spec_cols[i % n_cols]
+            col.markdown(
+                f"""
+                <div class='spec-label'>{key.replace('_', ' ')}</div>
+                <div class='spec-value'>{display_value}</div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        if "Datasheet_URL" in part and isinstance(part["Datasheet_URL"], str) and part["Datasheet_URL"].startswith("http"):
-            st.markdown(f"[📄 קישור ל-Datasheet]({part['Datasheet_URL']})")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Action row: datasheet link + single-part CSV export
+        st.markdown("<br>", unsafe_allow_html=True)
+        action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
+
+        with action_col1:
+            datasheet_url = part.get("Datasheet_URL", "")
+            if isinstance(datasheet_url, str) and datasheet_url.startswith("http"):
+                st.link_button("📄 Open Datasheet", datasheet_url, use_container_width=True)
+            else:
+                st.button("📄 Datasheet Unavailable", disabled=True, use_container_width=True)
+
+        with action_col2:
+            single_buffer = io.StringIO()
+            pd.DataFrame([part.drop(labels=["In_Stock"], errors="ignore")]).to_csv(single_buffer, index=False)
+            st.download_button(
+                label="⬇ Export This Part (CSV)",
+                data=single_buffer.getvalue(),
+                file_name=f"{part.get('Part_Number', 'component')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 st.markdown("---")
 st.caption(
-    f"מקור נתונים: `{CSV_PATH.name}` · עדכן את הקובץ הזה כדי לשנות מלאי, מחירים או להוסיף רכיבים חדשים — "
-    "האפליקציה תיטען מחדש אוטומטית."
+    f"Data source: `{CSV_PATH.name}` — update this file to change stock levels, pricing or specs. "
+    "The app reloads automatically when the file changes."
 )
