@@ -468,27 +468,27 @@ if "quick_category" not in st.session_state:
 # --------------------------------------------------------------------------
 st.markdown(
     """
-    <div class="rf-topbar">
-        <div class="rf-logo"><span class="dot">◆</span> RF&nbsp;&amp;&nbsp;MICROWAVE&nbsp;CATALOG</div>
-        <div class="rf-nav">
-            <span>Amplifiers</span><span>RF Components</span>
-            <span>Converters</span><span>Support</span>
+<div class="rf-topbar">
+    <div class="rf-logo"><span class="dot">◆</span> RF&nbsp;&amp;&nbsp;MICROWAVE&nbsp;CATALOG</div>
+    <div class="rf-nav">
+        <span>Amplifiers</span><span>RF Components</span>
+        <span>Converters</span><span>Support</span>
+    </div>
+</div>
+<div class="rf-hero">
+    <!-- תשתית האנימציה של הזרם -->
+    <div class="rf-trace-container">
+        <div class="rf-trace" style="top: 25%;">
+            <div class="rf-signal" style="animation-delay: 0s;"></div>
+        </div>
+        <div class="rf-trace" style="top: 75%;">
+            <div class="rf-signal" style="animation-delay: 1.7s;"></div>
         </div>
     </div>
-    <div class="rf-hero">
-        <!-- תשתית האנימציה של הזרם -->
-        <div class="rf-trace-container">
-            <div class="rf-trace" style="top: 25%;">
-                <div class="rf-signal" style="animation-delay: 0s;"></div>
-            </div>
-            <div class="rf-trace" style="top: 75%;">
-                <div class="rf-signal" style="animation-delay: 1.7s;"></div>
-            </div>
-        </div>
-        
-        <h1>Find the Right Component, Faster</h1>
-        <p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
-    </div>
+    
+<h1>Find the Right Component, Faster</h1>
+<p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
+</div>
     """,
     unsafe_allow_html=True,
 )
