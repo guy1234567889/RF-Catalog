@@ -3,7 +3,7 @@ RF & Electronic Components Catalog
 -----------------------------------
 A parametric search application optimized for SEO and generic branding.
 Supports dynamic URL routing (?part=XYZ) for direct component indexing.
-Includes CSS-based animated RF traces in the hero section.
+Includes CSS-based animated RF traces and a glowing component image.
 """
 
 import io
@@ -151,7 +151,7 @@ st.markdown(
             color: #CFE4F7 !important;
         }}
 
-        /* ---- Hero / search section with RF Animation ---- */
+        /* ---- Hero / search section with RF Animation & Glowing Image ---- */
         .rf-hero {{
             position: relative;
             overflow: hidden;
@@ -159,15 +159,11 @@ st.markdown(
             border-radius: 0 0 10px 10px;
             padding: 30px 24px 24px 24px;
             margin-bottom: 1.6rem;
-            text-align: center;
             width: 100%;
             z-index: 1;
         }}
-        .rf-hero h1, .rf-hero p {{
-            position: relative;
-            z-index: 2;
-        }}
         
+        /* RF Flow Animation */
         .rf-trace-container {{
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -195,6 +191,49 @@ st.markdown(
             100% {{ left: 110%; opacity: 0; }}
         }}
 
+        /* Hero Content Layout */
+        .rf-hero-content {{
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }}
+        .rf-hero-text {{
+            flex: 1;
+            min-width: 300px;
+            text-align: left;
+        }}
+        .rf-hero-text h1 {{
+            color: {PRIMARY_BLUE} !important;
+            font-size: 1.9rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }}
+        .rf-hero-text p {{
+            color: {PRIMARY_BLUE} !important;
+            opacity: 0.75;
+            font-size: 0.98rem;
+            margin-bottom: 0;
+        }}
+        
+        /* Glowing Filter Effect */
+        .glowing-filter {{
+            display: block;
+            border-radius: 12px;
+            max-width: 250px;
+            height: auto;
+            border: 2px solid {ACCENT_BLUE};
+            animation: pulse-glow 2s infinite alternate;
+        }}
+        @keyframes pulse-glow {{
+            from {{ box-shadow: 0 0 10px {ACCENT_BLUE}, 0 0 15px {ACCENT_BLUE}; }}
+            to {{ box-shadow: 0 0 25px {ACCENT_BLUE}, 0 0 45px {ACCENT_BLUE}; }}
+        }}
+
+        /* Inputs & Buttons */
         div[data-testid="stTextInput"] input {{
             border: 2px solid {ACCENT_BLUE} !important;
             border-radius: 24px !important;
@@ -401,8 +440,8 @@ st.markdown(
         @media (max-width: 640px) {{
             .rf-nav {{ display: none; }}
             .rf-logo {{ font-size: 1rem; }}
-            .rf-hero h1 {{ font-size: 1.35rem; }}
-            .rf-hero p {{ font-size: 0.85rem; }}
+            .rf-hero-text h1, .rf-hero-text p {{ text-align: center; }}
+            .rf-hero-content {{ flex-direction: column; text-align: center; }}
             .main .block-container {{
                 padding-left: 0.6rem;
                 padding-right: 0.6rem;
@@ -464,7 +503,7 @@ if "quick_category" not in st.session_state:
     st.session_state["quick_category"] = None
 
 # --------------------------------------------------------------------------
-# Top bar + Hero section
+# Top bar + Hero section with layout and glowing image
 # --------------------------------------------------------------------------
 st.markdown(
     """
@@ -486,8 +525,17 @@ st.markdown(
         </div>
     </div>
     
-<h1>Find the Right Component, Faster</h1>
-<p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
+    <!-- פריסת התוכן: טקסט משמאל, תמונה זוהרת מימין -->
+    <div class="rf-hero-content">
+        <div class="rf-hero-text">
+            <h1>Find the Right Component, Faster</h1>
+            <p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
+        </div>
+        <div>
+            <!-- תמונת הפילטר מה-GitHub שלך עם האפקט הזוהר -->
+            <img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
+        </div>
+    </div>
 </div>
     """,
     unsafe_allow_html=True,
