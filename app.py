@@ -3,6 +3,7 @@ RF & Electronic Components Catalog
 -----------------------------------
 A parametric search application optimized for SEO and generic branding.
 Supports dynamic URL routing (?part=XYZ) for direct component indexing.
+Includes CSS-based animated RF traces in the hero section.
 """
 
 import io
@@ -150,26 +151,48 @@ st.markdown(
             color: #CFE4F7 !important;
         }}
 
-        /* ---- Hero / search section ---- */
+        /* ---- Hero / search section with RF Animation ---- */
         .rf-hero {{
+            position: relative;
+            overflow: hidden;
             background: linear-gradient(180deg, #FFFFFF 0%, {ACCENT_BLUE_LIGHT} 100%);
             border-radius: 0 0 10px 10px;
             padding: 30px 24px 24px 24px;
             margin-bottom: 1.6rem;
             text-align: center;
             width: 100%;
+            z-index: 1;
         }}
-        .rf-hero h1 {{
-            color: {PRIMARY_BLUE} !important;
-            font-size: 1.9rem;
-            font-weight: 800;
-            margin-bottom: 4px;
+        .rf-hero h1, .rf-hero p {{
+            position: relative;
+            z-index: 2;
         }}
-        .rf-hero p {{
-            color: {PRIMARY_BLUE} !important;
-            opacity: 0.75;
-            font-size: 0.98rem;
-            margin-bottom: 0;
+        
+        .rf-trace-container {{
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }}
+        .rf-trace {{
+            position: absolute;
+            left: 0; width: 100%; height: 1px;
+            background: rgba(0, 114, 206, 0.15);
+        }}
+        .rf-signal {{
+            position: absolute;
+            top: -1px; left: -200px;
+            width: 120px; height: 3px;
+            background: {ACCENT_BLUE};
+            box-shadow: 0 0 8px {ACCENT_BLUE}, 0 0 15px {ACCENT_BLUE};
+            border-radius: 10px;
+            animation: rf-flow 3.5s linear infinite;
+        }}
+        @keyframes rf-flow {{
+            0% {{ left: -10%; opacity: 0; }}
+            10% {{ opacity: 1; }}
+            90% {{ opacity: 1; }}
+            100% {{ left: 110%; opacity: 0; }}
         }}
 
         div[data-testid="stTextInput"] input {{
@@ -453,6 +476,16 @@ st.markdown(
         </div>
     </div>
     <div class="rf-hero">
+        <!-- תשתית האנימציה של הזרם -->
+        <div class="rf-trace-container">
+            <div class="rf-trace" style="top: 25%;">
+                <div class="rf-signal" style="animation-delay: 0s;"></div>
+            </div>
+            <div class="rf-trace" style="top: 75%;">
+                <div class="rf-signal" style="animation-delay: 1.7s;"></div>
+            </div>
+        </div>
+        
         <h1>Find the Right Component, Faster</h1>
         <p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
     </div>
