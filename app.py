@@ -1,9 +1,9 @@
 """
 RF & Electronic Components Catalog
 -----------------------------------
-A Streamlit application styled after the Analog Devices website and
-parametric catalog: clean white background, deep-blue header/accents,
-a prominent hero search bar, and category cards.
+A Streamlit application styled after the Analog Devices website:
+deep-blue page background, white cards with navy text, a prominent
+hero search bar, and category tiles. Mobile-responsive.
 
 Data is loaded from an external CSV file (default: components_data.csv),
 so the catalog (stock, pricing, specs) can be updated without touching
@@ -43,9 +43,8 @@ NUMERIC_RANGE_COLUMNS = {
 FREQ_MIN_COL = "Frequency_Min_GHz"
 FREQ_MAX_COL = "Frequency_Max_GHz"
 
-# Quick-browse category tiles shown on the "home" hero section.
-# `match` is a case-insensitive substring matched against the Category column,
-# so it still works even if your CSV uses slightly different category names.
+# Quick-browse category tiles shown on the hero section.
+# `match` is a case-insensitive substring matched against the Category column.
 QUICK_CATEGORIES = [
     {"icon": "📶", "label": "Amplifiers", "match": "amplifier"},
     {"icon": "🔀", "label": "Mixers", "match": "mixer"},
@@ -56,86 +55,121 @@ QUICK_CATEGORIES = [
 ]
 
 # --------------------------------------------------------------------------
-# Theme / styling — light background, deep Analog-blue accents
+# Theme / styling — blue page background, white cards, navy text
 # --------------------------------------------------------------------------
-PRIMARY_BLUE = "#00355F"     # deep navy — header, headings
+BG_APP = "#0B4C8C"           # overall page background (Analog-style blue)
+TOPBAR_BLUE = "#00284D"      # darker navy for the top bar
+PRIMARY_BLUE = "#00355F"     # navy text used inside white cards
 ACCENT_BLUE = "#0072CE"      # bright signal blue — buttons, links, highlights
-ACCENT_BLUE_LIGHT = "#E6F2FC"  # pale blue tint for hero/backgrounds
+ACCENT_BLUE_LIGHT = "#E6F2FC"  # pale blue tint for hover states
 BORDER = "#D6DEE6"
-TEXT_DARK = "#1A2733"
-TEXT_MUTED = "#5B6B7B"
-BG_PAGE = "#FFFFFF"
-BG_CARD = "#FFFFFF"
+TEXT_DARK = "#1A2733"        # dark text used inside white cards
+CARD_WHITE = "#FFFFFF"
 
 st.markdown(
     f"""
     <style>
-        html, body, [class*="css"] {{
-            font-family: "Segoe UI", "Inter", -apple-system, sans-serif;
-            color: {TEXT_DARK};
+        /* ---------------------------------------------------------------
+           Base page: force the blue background everywhere, prevent any
+           horizontal overflow on mobile, and set a sane default text
+           color (white) for anything sitting directly on the blue page.
+        --------------------------------------------------------------- */
+        html, body {{
+            overflow-x: hidden !important;
+            max-width: 100vw;
+        }}
+        *, *::before, *::after {{
+            box-sizing: border-box;
         }}
         .stApp {{
-            background-color: {BG_PAGE};
+            background-color: {BG_APP};
+            overflow-x: hidden !important;
         }}
-        .block-container {{
+        .stApp, .stApp p, .stApp span, .stApp label, .stApp div {{
+            color: #FFFFFF;
+        }}
+        .main .block-container {{
             padding-top: 1rem;
             padding-bottom: 3rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
             max-width: 1500px;
+            overflow-x: hidden;
         }}
 
-        /* ---- Top header bar (logo strip) ---- */
+        /* Hide Streamlit's own default header completely, and remove the
+           space it used to reserve so nothing overlaps our custom header. */
+        header[data-testid="stHeader"] {{
+            display: none !important;
+        }}
+        div[data-testid="stAppViewContainer"] {{
+            padding-top: 0 !important;
+        }}
+        div[data-testid="stDecoration"] {{
+            display: none !important;
+        }}
+
+        /* ---- Custom top header bar (logo strip) ---- */
         .adi-topbar {{
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            background-color: {PRIMARY_BLUE};
-            padding: 14px 30px;
+            gap: 10px;
+            background-color: {TOPBAR_BLUE};
+            padding: 14px 24px;
             border-radius: 8px 8px 0 0;
-            margin-bottom: 0;
+            margin: 0 0 0 0;
+            width: 100%;
         }}
         .adi-logo {{
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #FFFFFF;
-            font-size: 1.3rem;
+            color: #FFFFFF !important;
+            font-size: 1.2rem;
             font-weight: 800;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }}
         .adi-logo span.dot {{
             color: {ACCENT_BLUE};
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             line-height: 0;
         }}
         .adi-nav {{
             display: flex;
-            gap: 26px;
-            color: #CFE4F7;
-            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 18px;
+            color: #CFE4F7 !important;
+            font-size: 0.8rem;
             font-weight: 600;
             letter-spacing: 0.3px;
             text-transform: uppercase;
         }}
+        .adi-nav span {{
+            color: #CFE4F7 !important;
+        }}
 
-        /* ---- Hero / search section ---- */
+        /* ---- Hero / search section (white card) ---- */
         .adi-hero {{
-            background: linear-gradient(180deg, {ACCENT_BLUE_LIGHT} 0%, #FFFFFF 100%);
-            border: 1px solid {BORDER};
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            padding: 34px 30px 26px 30px;
-            margin-bottom: 1.8rem;
+            background: linear-gradient(180deg, #FFFFFF 0%, {ACCENT_BLUE_LIGHT} 100%);
+            border-radius: 0 0 10px 10px;
+            padding: 30px 24px 24px 24px;
+            margin-bottom: 1.6rem;
             text-align: center;
+            width: 100%;
         }}
         .adi-hero h1 {{
-            color: {PRIMARY_BLUE};
-            font-size: 2rem;
+            color: {PRIMARY_BLUE} !important;
+            font-size: 1.9rem;
             font-weight: 800;
             margin-bottom: 4px;
         }}
         .adi-hero p {{
-            color: {TEXT_MUTED};
-            font-size: 1rem;
+            color: {PRIMARY_BLUE} !important;
+            opacity: 0.75;
+            font-size: 0.98rem;
             margin-bottom: 0;
         }}
 
@@ -144,112 +178,149 @@ st.markdown(
             border: 2px solid {ACCENT_BLUE} !important;
             border-radius: 24px !important;
             padding: 10px 20px !important;
-            font-size: 1.05rem !important;
-            box-shadow: 0 2px 8px rgba(0, 53, 95, 0.08);
+            font-size: 1.02rem !important;
+            background-color: #FFFFFF !important;
+            color: {TEXT_DARK} !important;
+            box-shadow: 0 2px 8px rgba(0, 53, 95, 0.15);
+        }}
+        div[data-testid="stTextInput"] input::placeholder {{
+            color: #8A97A5 !important;
         }}
         div[data-testid="stTextInput"] input:focus {{
-            box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.25);
+            box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.3);
         }}
 
-        /* ---- Category tiles ---- */
-        .cat-card {{
-            background-color: {BG_CARD};
-            border: 1px solid {BORDER};
-            border-radius: 12px;
-            padding: 18px 10px;
+        /* "Browse by Category" label sits directly on the blue background */
+        .browse-label {{
             text-align: center;
-            transition: all 0.15s ease-in-out;
-        }}
-        .cat-icon {{
-            font-size: 2rem;
-            margin-bottom: 6px;
-        }}
-        .cat-label {{
+            color: #FFFFFF !important;
             font-weight: 700;
-            color: {PRIMARY_BLUE};
-            font-size: 0.92rem;
-        }}
-        div[data-testid="column"] .stButton button {{
-            width: 100%;
-            border-radius: 12px;
-            border: 1px solid {BORDER};
-            background-color: {BG_CARD};
-            color: {PRIMARY_BLUE};
-            font-weight: 700;
-            padding: 18px 4px;
-        }}
-        div[data-testid="column"] .stButton button:hover {{
-            border-color: {ACCENT_BLUE};
-            background-color: {ACCENT_BLUE_LIGHT};
-            color: {ACCENT_BLUE};
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
         }}
 
-        /* ---- Generic buttons ---- */
-        .stButton > button, .stDownloadButton > button, .stLinkButton > a {{
+        /* ---- Category tile buttons (white cards, navy text) ---- */
+        div[data-testid="column"] .stButton > button {{
+            width: 100%;
+            border-radius: 12px !important;
+            border: 1px solid {BORDER} !important;
+            background-color: {CARD_WHITE} !important;
+            color: {PRIMARY_BLUE} !important;
+            font-weight: 700 !important;
+            padding: 18px 4px !important;
+        }}
+        div[data-testid="column"] .stButton > button p,
+        div[data-testid="column"] .stButton > button div,
+        div[data-testid="column"] .stButton > button span {{
+            color: {PRIMARY_BLUE} !important;
+        }}
+        div[data-testid="column"] .stButton > button:hover,
+        div[data-testid="column"] .stButton > button:focus,
+        div[data-testid="column"] .stButton > button:active {{
+            background-color: {ACCENT_BLUE_LIGHT} !important;
+            border-color: {ACCENT_BLUE} !important;
+            color: {ACCENT_BLUE} !important;
+        }}
+        div[data-testid="column"] .stButton > button:hover p,
+        div[data-testid="column"] .stButton > button:hover div,
+        div[data-testid="column"] .stButton > button:hover span,
+        div[data-testid="column"] .stButton > button:focus p,
+        div[data-testid="column"] .stButton > button:focus div,
+        div[data-testid="column"] .stButton > button:focus span {{
+            color: {ACCENT_BLUE} !important;
+        }}
+
+        /* ---- Generic action buttons (reset / clear / etc.) ---- */
+        .stButton > button {{
             border-radius: 24px;
             font-weight: 600;
         }}
         .stDownloadButton > button, .stLinkButton > a {{
-            background-color: {ACCENT_BLUE};
-            color: #FFFFFF;
-            border: none;
+            background-color: {ACCENT_BLUE} !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 24px !important;
+            font-weight: 600 !important;
         }}
         .stDownloadButton > button:hover, .stLinkButton > a:hover {{
-            background-color: {PRIMARY_BLUE};
-            color: #FFFFFF;
+            background-color: {PRIMARY_BLUE} !important;
+            color: #FFFFFF !important;
         }}
 
-        /* ---- Sidebar ---- */
+        /* ---- Sidebar (white card, navy text) ---- */
         section[data-testid="stSidebar"] {{
-            background-color: #F7FAFC;
+            background-color: {CARD_WHITE} !important;
             border-right: 1px solid {BORDER};
+        }}
+        section[data-testid="stSidebar"] * {{
+            color: {TEXT_DARK} !important;
         }}
         .sidebar-section-title {{
             font-size: 0.72rem;
             font-weight: 800;
             letter-spacing: 1.1px;
             text-transform: uppercase;
-            color: {ACCENT_BLUE};
+            color: {ACCENT_BLUE} !important;
             margin: 1.1rem 0 0.4rem 0;
             border-bottom: 2px solid {ACCENT_BLUE_LIGHT};
             padding-bottom: 6px;
         }}
+        /* Make sure radio / multiselect / slider text stays fully visible */
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+        section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label span {{
+            color: {TEXT_DARK} !important;
+            opacity: 1 !important;
+        }}
+        section[data-testid="stSidebar"] .stButton > button {{
+            background-color: #FFFFFF !important;
+            color: {ACCENT_BLUE} !important;
+            border: 1px solid {ACCENT_BLUE} !important;
+        }}
 
-        /* ---- Metric tiles ---- */
+        /* ---- Metric tiles (white cards, navy text) ---- */
         div[data-testid="stMetric"] {{
-            background: #F7FAFC;
+            background: {CARD_WHITE} !important;
             border: 1px solid {BORDER};
             border-radius: 12px;
-            padding: 12px 16px 8px 16px;
+            padding: 12px 16px 10px 16px;
         }}
-        div[data-testid="stMetricLabel"] {{
-            font-size: 0.72rem;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: {TEXT_MUTED};
-        }}
-        div[data-testid="stMetricValue"] {{
-            font-size: 1.5rem;
-            color: {PRIMARY_BLUE};
-        }}
-
-        h2, h3 {{
+        div[data-testid="stMetric"] * {{
             color: {PRIMARY_BLUE} !important;
         }}
+        div[data-testid="stMetricLabel"] {{
+            font-size: 0.72rem !important;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-weight: 700 !important;
+            opacity: 0.8;
+        }}
+        div[data-testid="stMetricValue"] {{
+            font-size: 1.5rem !important;
+            font-weight: 800 !important;
+        }}
 
-        /* ---- Table ---- */
+        /* Section headings that sit directly on the blue background */
+        h2, h3 {{
+            color: #FFFFFF !important;
+        }}
+
+        /* ---- Results table ---- */
         .stDataFrame {{
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid {BORDER};
+            max-width: 100%;
         }}
 
         /* ---- Active filter chip ---- */
         .active-chip {{
             display: inline-block;
-            background-color: {ACCENT_BLUE_LIGHT};
+            background-color: {CARD_WHITE};
             border: 1px solid {ACCENT_BLUE};
-            color: {ACCENT_BLUE};
+            color: {ACCENT_BLUE} !important;
             padding: 4px 14px;
             border-radius: 16px;
             font-size: 0.85rem;
@@ -257,23 +328,26 @@ st.markdown(
             margin-bottom: 12px;
         }}
 
-        /* ---- Detail card ---- */
+        /* ---- Product Details card (white card, navy text) ---- */
         .detail-card {{
-            background: #FFFFFF;
-            border: 1px solid {BORDER};
-            border-left: 5px solid {ACCENT_BLUE};
+            background: {CARD_WHITE};
             border-radius: 12px;
-            padding: 24px 28px;
-            box-shadow: 0 2px 10px rgba(0, 53, 95, 0.06);
+            padding: 22px 24px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+            width: 100%;
+            overflow-x: auto;
+        }}
+        .detail-card, .detail-card * {{
+            color: {TEXT_DARK} !important;
         }}
         .detail-title {{
-            font-size: 1.55rem;
+            font-size: 1.5rem;
             font-weight: 800;
-            color: {PRIMARY_BLUE};
+            color: {PRIMARY_BLUE} !important;
             margin-bottom: 2px;
         }}
         .detail-sub {{
-            color: {TEXT_MUTED};
+            opacity: 0.75;
             font-size: 0.95rem;
             margin-bottom: 14px;
         }}
@@ -281,19 +355,19 @@ st.markdown(
             font-size: 0.68rem;
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            color: {TEXT_MUTED};
+            opacity: 0.65;
             margin-bottom: 2px;
         }}
         .spec-value {{
-            font-size: 1.05rem;
+            font-size: 1.02rem;
             font-weight: 700;
-            color: {TEXT_DARK};
             margin-bottom: 14px;
+            word-break: break-word;
         }}
         .stock-pill-in {{
             background-color: #E6F7EE;
             border: 1px solid #2ec27e;
-            color: #1a8a54;
+            color: #1a8a54 !important;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 0.8rem;
@@ -302,7 +376,7 @@ st.markdown(
         .stock-pill-out {{
             background-color: #FDECEC;
             border: 1px solid #e03c3c;
-            color: #c0302f;
+            color: #c0302f !important;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 0.8rem;
@@ -310,6 +384,21 @@ st.markdown(
         }}
 
         footer {{visibility: hidden;}}
+
+        /* ---- Mobile responsiveness ---- */
+        @media (max-width: 640px) {{
+            .adi-nav {{ display: none; }}
+            .adi-logo {{ font-size: 1rem; }}
+            .adi-hero h1 {{ font-size: 1.35rem; }}
+            .adi-hero p {{ font-size: 0.85rem; }}
+            .main .block-container {{
+                padding-left: 0.6rem;
+                padding-right: 0.6rem;
+            }}
+            div[data-testid="stMetric"] {{
+                padding: 8px 10px 6px 10px;
+            }}
+        }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -402,12 +491,7 @@ with hero_search_col2:
     )
 
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-st.markdown(
-    f"<div style='text-align:center; color:{TEXT_MUTED}; font-weight:700; "
-    "letter-spacing:0.5px; text-transform:uppercase; font-size:0.8rem; margin-bottom:10px;'>"
-    "Browse by Category</div>",
-    unsafe_allow_html=True,
-)
+st.markdown("<div class='browse-label'>Browse by Category</div>", unsafe_allow_html=True)
 
 cat_cols = st.columns(len(QUICK_CATEGORIES))
 for col, cat in zip(cat_cols, QUICK_CATEGORIES):
@@ -433,7 +517,7 @@ st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
 # Sidebar — advanced filters
 # --------------------------------------------------------------------------
 st.sidebar.markdown(
-    f"<div style='font-size:1.05rem; font-weight:800; letter-spacing:0.4px; color:{PRIMARY_BLUE};'>⚙ ADVANCED FILTERS</div>",
+    f"<div style='font-size:1.05rem; font-weight:800; letter-spacing:0.4px; color:{PRIMARY_BLUE} !important;'>⚙ ADVANCED FILTERS</div>",
     unsafe_allow_html=True,
 )
 st.sidebar.caption("Refine the catalog using the parameters below.")
@@ -549,7 +633,7 @@ for col, (lo_sel, hi_sel) in numeric_selected_ranges.items():
 # Summary metrics
 # --------------------------------------------------------------------------
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total Parts in Catalog", len(df))
+m1.metric("Total Parts", len(df))
 m2.metric("Matching Results", len(filtered))
 if "In_Stock" in filtered.columns:
     m3.metric("In Stock", int(filtered["In_Stock"].sum()))
