@@ -508,34 +508,33 @@ if "quick_category" not in st.session_state:
 st.markdown(
     """
 <div class="rf-topbar">
-    <div class="rf-logo"><span class="dot">◆</span> RF&nbsp;&amp;&nbsp;MICROWAVE&nbsp;CATALOG</div>
-    <div class="rf-nav">
-        <span>Amplifiers</span><span>RF Components</span>
-        <span>Converters</span><span>Support</span>
-    </div>
+<div class="rf-logo"><span class="dot">◆</span> RF&nbsp;&amp;&nbsp;MICROWAVE&nbsp;CATALOG</div>
+<div class="rf-nav">
+<span>Amplifiers</span><span>RF Components</span>
+<span>Converters</span><span>Support</span>
+</div>
 </div>
 <div class="rf-hero">
-    <!-- תשתית האנימציה של הזרם -->
-    <div class="rf-trace-container">
-        <div class="rf-trace" style="top: 25%;">
-            <div class="rf-signal" style="animation-delay: 0s;"></div>
-        </div>
-        <div class="rf-trace" style="top: 75%;">
-            <div class="rf-signal" style="animation-delay: 1.7s;"></div>
-        </div>
-    </div>
-    
-    <!-- פריסת התוכן: טקסט משמאל, תמונה זוהרת מימין -->
-    <div class="rf-hero-content">
-        <div class="rf-hero-text">
-            <h1>Find the Right Component, Faster</h1>
-            <p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
-        </div>
-        <div>
-            <!-- תמונת הפילטר מה-GitHub שלך עם האפקט הזוהר -->
-            <img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
-        </div>
-    </div>
+<!-- תשתית האנימציה של הזרם -->
+<div class="rf-trace-container">
+<div class="rf-trace" style="top: 25%;">
+<div class="rf-signal" style="animation-delay: 0s;"></div>
+</div>
+<div class="rf-trace" style="top: 75%;">
+<div class="rf-signal" style="animation-delay: 1.7s;"></div>
+</div>
+</div>
+<!-- פריסת התוכן: טקסט משמאל, תמונה זוהרת מימין -->
+<div class="rf-hero-content">
+<div class="rf-hero-text">
+<h1>Find the Right Component, Faster</h1>
+<p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
+</div>
+<div>
+<!-- תמונת הפילטר מה-GitHub שלך עם האפקט הזוהר -->
+<img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
+</div>
+</div>
 </div>
     """,
     unsafe_allow_html=True,
