@@ -1,45 +1,37 @@
 """
 RF & Electronic Components Catalog
 -----------------------------------
-A parametric search application optimized for SEO and generic branding.
-Supports dynamic URL routing (?part=XYZ) for direct component indexing.
-Includes CSS-based animated RF traces and a glowing component image.
+A Streamlit application styled after industrial RF/electronics catalog
+sites (Analog Devices / Kyocera AVX): deep-blue page background, white
+content cards with navy text, a dark hero banner with animated RF-trace
+background and a glowing product image, and category tiles.
+
+Data is loaded from an external CSV file (default: components_data.csv),
+so the catalog (stock, pricing, specs) can be updated without touching
+this code.
+
+Run:
+    streamlit run app.py
 """
 
 import io
+import textwrap
 from pathlib import Path
+
 import pandas as pd
 import streamlit as st
-
-CSV_PATH = Path("components_data.csv")
-
-# ==========================================
-# 1. SEO & URL ROUTING (Runs before page config)
-# ==========================================
-query_params = st.query_params
-url_part = query_params.get("part", None)
-page_title = "RF & Electronic Components Catalog"
-
-# If a specific part is requested in the URL, create an SEO-optimized title for Google
-if url_part and CSV_PATH.exists():
-    try:
-        temp_df = pd.read_csv(CSV_PATH)
-        match = temp_df[temp_df["Part_Number"].astype(str).str.casefold() == url_part.casefold()]
-        if not match.empty:
-            cat = match.iloc[0].get("Category", "Component")
-            page_title = f"{url_part} | {cat} | RF Catalog"
-    except Exception:
-        pass
 
 # --------------------------------------------------------------------------
 # Page configuration
 # --------------------------------------------------------------------------
 st.set_page_config(
-    page_title=page_title,
+    page_title="RF & Components Catalog",
     page_icon="📡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+CSV_PATH = Path("components_data.csv")
 
 NUMERIC_RANGE_COLUMNS = {
     "Gain_dB": "Gain [dB]",
@@ -53,6 +45,8 @@ NUMERIC_RANGE_COLUMNS = {
 FREQ_MIN_COL = "Frequency_Min_GHz"
 FREQ_MAX_COL = "Frequency_Max_GHz"
 
+# Quick-browse category tiles shown below the hero section.
+# `match` is a case-insensitive substring matched against the Category column.
 QUICK_CATEGORIES = [
     {"icon": "📶", "label": "Amplifiers", "match": "amplifier"},
     {"icon": "🔀", "label": "Mixers", "match": "mixer"},
@@ -62,24 +56,43 @@ QUICK_CATEGORIES = [
     {"icon": "📉", "label": "Attenuators", "match": "attenuator"},
 ]
 
+
+def html_block(s: str) -> str:
+    """Dedent a triple-quoted HTML/CSS block so no line has leading
+    whitespace. Indentation inside a string passed to
+    st.markdown(..., unsafe_allow_html=True) can make Streamlit's
+    Markdown parser treat the block as a literal code block instead of
+    rendering the HTML — this neutralizes that."""
+    return textwrap.dedent(s).strip("\n")
+
+
 # --------------------------------------------------------------------------
-# Theme / styling 
+# Theme / styling — blue page background, white cards, navy text
 # --------------------------------------------------------------------------
-BG_APP = "#0B4C8C"           
-TOPBAR_BLUE = "#00284D"      
-PRIMARY_BLUE = "#00355F"     
-ACCENT_BLUE = "#0072CE"      
-ACCENT_BLUE_LIGHT = "#E6F2FC"  
+BG_APP = "#0B4C8C"           # overall page background (Analog-style blue)
+TOPBAR_BLUE = "#00284D"      # darker navy for the top bar / hero
+PRIMARY_BLUE = "#00355F"     # navy text used inside white cards
+ACCENT_BLUE = "#0072CE"      # bright signal blue — buttons, links, highlights
+ACCENT_BLUE_LIGHT = "#E6F2FC"  # pale blue tint for hover states
 BORDER = "#D6DEE6"
-TEXT_DARK = "#1A2733"        
+TEXT_DARK = "#1A2733"        # dark text used inside white cards
 CARD_WHITE = "#FFFFFF"
 
 st.markdown(
-    f"""
-    <style>
+    html_block(
+        f"""
+        <style>
         html, body {{
             overflow-x: hidden !important;
             max-width: 100vw;
+            color-scheme: light !important;
+        }}
+        /* Some mobile browsers (notably iOS Safari) auto-darken native
+           form controls like <button> based on the OS dark-mode setting,
+           even when the page itself is styled light. Forcing color-scheme
+           to "light" on the buttons themselves stops that auto-adjustment. */
+        button {{
+            color-scheme: light !important;
         }}
         *, *::before, *::after {{
             box-sizing: border-box;
@@ -99,6 +112,9 @@ st.markdown(
             max-width: 1500px;
             overflow-x: hidden;
         }}
+
+        /* Hide Streamlit's own default header completely, and remove the
+           space it used to reserve so nothing overlaps our custom header. */
         header[data-testid="stHeader"] {{
             display: none !important;
         }}
@@ -109,7 +125,7 @@ st.markdown(
             display: none !important;
         }}
 
-        /* ---- Custom top header bar ---- */
+        /* ---- Top bar ---- */
         .rf-topbar {{
             display: flex;
             flex-wrap: wrap;
@@ -119,7 +135,6 @@ st.markdown(
             background-color: {TOPBAR_BLUE};
             padding: 14px 24px;
             border-radius: 8px 8px 0 0;
-            margin: 0 0 0 0;
             width: 100%;
         }}
         .rf-logo {{
@@ -140,100 +155,107 @@ st.markdown(
         .rf-nav {{
             display: flex;
             flex-wrap: wrap;
-            gap: 18px;
+            gap: 22px;
             color: #CFE4F7 !important;
             font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.3px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
         }}
         .rf-nav span {{
             color: #CFE4F7 !important;
+            cursor: default;
         }}
 
-        /* ---- Hero / search section with RF Animation & Glowing Image ---- */
+        /* ---- Hero banner: dark gradient, animated RF trace background,
+               two-column layout (text left / glowing image right) ---- */
         .rf-hero {{
             position: relative;
             overflow: hidden;
-            background: linear-gradient(180deg, #FFFFFF 0%, {ACCENT_BLUE_LIGHT} 100%);
+            background: linear-gradient(135deg, {TOPBAR_BLUE} 0%, {BG_APP} 65%, {ACCENT_BLUE} 160%);
             border-radius: 0 0 10px 10px;
-            padding: 30px 24px 24px 24px;
+            padding: 40px 34px;
             margin-bottom: 1.6rem;
             width: 100%;
-            z-index: 1;
         }}
-        
-        /* RF Flow Animation */
-        .rf-trace-container {{
+        /* Animated RF trace / signal-line background */
+        .rf-hero::before {{
+            content: "";
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            inset: -50%;
+            background-image:
+                repeating-linear-gradient(45deg,
+                    rgba(255, 255, 255, 0.06) 0px,
+                    rgba(255, 255, 255, 0.06) 2px,
+                    transparent 2px,
+                    transparent 42px),
+                repeating-linear-gradient(-45deg,
+                    rgba(0, 200, 255, 0.08) 0px,
+                    rgba(0, 200, 255, 0.08) 1px,
+                    transparent 1px,
+                    transparent 60px);
+            animation: rf-trace-move 9s linear infinite;
             pointer-events: none;
             z-index: 0;
         }}
-        .rf-trace {{
-            position: absolute;
-            left: 0; width: 100%; height: 1px;
-            background: rgba(0, 114, 206, 0.15);
+        @keyframes rf-trace-move {{
+            0%   {{ transform: translate(0, 0); }}
+            100% {{ transform: translate(120px, 120px); }}
         }}
-        .rf-signal {{
-            position: absolute;
-            top: -1px; left: -200px;
-            width: 120px; height: 3px;
-            background: {ACCENT_BLUE};
-            box-shadow: 0 0 8px {ACCENT_BLUE}, 0 0 15px {ACCENT_BLUE};
-            border-radius: 10px;
-            animation: rf-flow 3.5s linear infinite;
-        }}
-        @keyframes rf-flow {{
-            0% {{ left: -10%; opacity: 0; }}
-            10% {{ opacity: 1; }}
-            90% {{ opacity: 1; }}
-            100% {{ left: 110%; opacity: 0; }}
-        }}
-
-        /* Hero Content Layout */
         .rf-hero-content {{
             position: relative;
-            z-index: 2;
+            z-index: 1;
             display: flex;
-            align-items: center;
-            justify-content: space-around;
             flex-wrap: wrap;
-            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
         }}
         .rf-hero-text {{
-            flex: 1;
-            min-width: 300px;
-            text-align: left;
+            flex: 1 1 420px;
+            min-width: 260px;
         }}
         .rf-hero-text h1 {{
-            color: {PRIMARY_BLUE} !important;
-            font-size: 1.9rem;
-            font-weight: 800;
-            margin-bottom: 8px;
+            color: #FFFFFF !important;
+            font-size: 2.4rem;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            line-height: 1.15;
+            margin-bottom: 12px;
         }}
         .rf-hero-text p {{
-            color: {PRIMARY_BLUE} !important;
-            opacity: 0.75;
-            font-size: 0.98rem;
+            color: #CFE4F7 !important;
+            font-size: 1.05rem;
+            max-width: 560px;
             margin-bottom: 0;
         }}
-        
-        /* Glowing Filter Effect */
-        .glowing-filter {{
-            display: block;
-            border-radius: 12px;
-            max-width: 250px;
-            height: auto;
-            border: 2px solid {ACCENT_BLUE};
-            animation: pulse-glow 2s infinite alternate;
-        }}
-        @keyframes pulse-glow {{
-            from {{ box-shadow: 0 0 10px {ACCENT_BLUE}, 0 0 15px {ACCENT_BLUE}; }}
-            to {{ box-shadow: 0 0 25px {ACCENT_BLUE}, 0 0 45px {ACCENT_BLUE}; }}
+        .rf-hero-image {{
+            flex: 1 1 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 180px;
         }}
 
-        /* Inputs & Buttons */
+        /* ---- Glowing product image ---- */
+        .glowing-filter {{
+            max-width: 260px;
+            width: 100%;
+            height: auto;
+            animation: rf-glow-pulse 2.4s ease-in-out infinite;
+        }}
+        @keyframes rf-glow-pulse {{
+            0%, 100% {{
+                filter: drop-shadow(0 0 8px rgba(0, 200, 255, 0.45))
+                        drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+            }}
+            50% {{
+                filter: drop-shadow(0 0 28px rgba(0, 200, 255, 0.9))
+                        drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+            }}
+        }}
+
+        /* Search input styling */
         div[data-testid="stTextInput"] input {{
             border: 2px solid {ACCENT_BLUE} !important;
             border-radius: 24px !important;
@@ -250,6 +272,7 @@ st.markdown(
             box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.3);
         }}
 
+        /* "Browse by Category" label sits directly on the blue background */
         .browse-label {{
             text-align: center;
             color: #FFFFFF !important;
@@ -260,20 +283,22 @@ st.markdown(
             margin-bottom: 10px;
         }}
 
-        /* ---- Category tile buttons ---- */
+        /* ---- Category tile buttons (white cards, navy text) ---- */
         div[data-testid="column"] .stButton > button {{
             width: 100%;
             border-radius: 12px !important;
             border: 1px solid {BORDER} !important;
             background-color: {CARD_WHITE} !important;
-            color: {PRIMARY_BLUE} !important;
             font-weight: 700 !important;
             padding: 18px 4px !important;
         }}
-        div[data-testid="column"] .stButton > button p,
-        div[data-testid="column"] .stButton > button div,
-        div[data-testid="column"] .stButton > button span {{
+        /* Universal descendant selector (not just p/div/span) so the text
+           stays navy no matter how deep the browser nests the label markup
+           — this is what was failing specifically on mobile browsers. */
+        div[data-testid="column"] .stButton > button,
+        div[data-testid="column"] .stButton > button * {{
             color: {PRIMARY_BLUE} !important;
+            -webkit-text-fill-color: {PRIMARY_BLUE} !important;
         }}
         div[data-testid="column"] .stButton > button:hover,
         div[data-testid="column"] .stButton > button:focus,
@@ -281,8 +306,24 @@ st.markdown(
             background-color: {ACCENT_BLUE_LIGHT} !important;
             border-color: {ACCENT_BLUE} !important;
         }}
+        div[data-testid="column"] .stButton > button:hover,
+        div[data-testid="column"] .stButton > button:hover *,
+        div[data-testid="column"] .stButton > button:focus,
+        div[data-testid="column"] .stButton > button:focus *,
+        div[data-testid="column"] .stButton > button:active,
+        div[data-testid="column"] .stButton > button:active * {{
+            color: {ACCENT_BLUE} !important;
+            -webkit-text-fill-color: {ACCENT_BLUE} !important;
+        }}
+        @media (max-width: 640px) {{
+            div[data-testid="column"] .stButton > button,
+            div[data-testid="column"] .stButton > button * {{
+                color: {PRIMARY_BLUE} !important;
+                -webkit-text-fill-color: {PRIMARY_BLUE} !important;
+            }}
+        }}
 
-        /* ---- Generic action buttons ---- */
+        /* ---- Generic action buttons (reset / clear / etc.) ---- */
         .stButton > button {{
             border-radius: 24px;
             font-weight: 600;
@@ -299,7 +340,7 @@ st.markdown(
             color: #FFFFFF !important;
         }}
 
-        /* ---- Sidebar ---- */
+        /* ---- Sidebar (white card, navy text) ---- */
         section[data-testid="stSidebar"] {{
             background-color: {CARD_WHITE} !important;
             border-right: 1px solid {BORDER};
@@ -329,7 +370,7 @@ st.markdown(
             border: 1px solid {ACCENT_BLUE} !important;
         }}
 
-        /* ---- Metric tiles ---- */
+        /* ---- Metric tiles (white cards, navy text) ---- */
         div[data-testid="stMetric"] {{
             background: {CARD_WHITE} !important;
             border: 1px solid {BORDER};
@@ -351,6 +392,7 @@ st.markdown(
             font-weight: 800 !important;
         }}
 
+        /* Section headings that sit directly on the blue background */
         h2, h3 {{
             color: #FFFFFF !important;
         }}
@@ -363,6 +405,7 @@ st.markdown(
             max-width: 100%;
         }}
 
+        /* ---- Active filter chip ---- */
         .active-chip {{
             display: inline-block;
             background-color: {CARD_WHITE};
@@ -375,7 +418,7 @@ st.markdown(
             margin-bottom: 12px;
         }}
 
-        /* ---- Product Details card ---- */
+        /* ---- Product Details card (white card, navy text) ---- */
         .detail-card {{
             background: {CARD_WHITE};
             border-radius: 12px;
@@ -383,7 +426,6 @@ st.markdown(
             box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
             width: 100%;
             overflow-x: auto;
-            margin-bottom: 2rem;
         }}
         .detail-card, .detail-card * {{
             color: {TEXT_DARK} !important;
@@ -398,7 +440,6 @@ st.markdown(
             opacity: 0.75;
             font-size: 0.95rem;
             margin-bottom: 14px;
-            font-weight: 600;
         }}
         .spec-label {{
             font-size: 0.68rem;
@@ -406,8 +447,6 @@ st.markdown(
             text-transform: uppercase;
             opacity: 0.65;
             margin-bottom: 2px;
-            color: {PRIMARY_BLUE} !important;
-            font-weight: 700;
         }}
         .spec-value {{
             font-size: 1.02rem;
@@ -440,8 +479,10 @@ st.markdown(
         @media (max-width: 640px) {{
             .rf-nav {{ display: none; }}
             .rf-logo {{ font-size: 1rem; }}
-            .rf-hero-text h1, .rf-hero-text p {{ text-align: center; }}
-            .rf-hero-content {{ flex-direction: column; text-align: center; }}
+            .rf-hero {{ padding: 26px 18px; }}
+            .rf-hero-text h1 {{ font-size: 1.6rem; }}
+            .rf-hero-text p {{ font-size: 0.9rem; }}
+            .glowing-filter {{ max-width: 160px; }}
             .main .block-container {{
                 padding-left: 0.6rem;
                 padding-right: 0.6rem;
@@ -450,22 +491,20 @@ st.markdown(
                 padding: 8px 10px 6px 10px;
             }}
         }}
-    </style>
-    """,
+        </style>
+        """
+    ),
     unsafe_allow_html=True,
 )
 
+
 # --------------------------------------------------------------------------
-# Data loading & Brand Scrubber
+# Data loading
 # --------------------------------------------------------------------------
 @st.cache_data(show_spinner="Loading component database...")
 def load_data(path: Path, mtime: float) -> pd.DataFrame:
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]
-
-    # STRICT LEGAL RULE: Nuke the manufacturer column completely if it exists
-    if "Manufacturer" in df.columns:
-        df = df.drop(columns=["Manufacturer"])
 
     for col in list(NUMERIC_RANGE_COLUMNS.keys()) + [FREQ_MIN_COL, FREQ_MAX_COL, "Stock_Qty"]:
         if col in df.columns:
@@ -476,11 +515,12 @@ def load_data(path: Path, mtime: float) -> pd.DataFrame:
     else:
         df["In_Stock"] = True
 
-    for col in ["Part_Number", "Category", "Description", "Package", "Applications", "Drop_in_Replacement"]:
+    for col in ["Part_Number", "Category", "Manufacturer", "Description", "Package"]:
         if col in df.columns:
             df[col] = df[col].astype(str).fillna("")
 
     return df
+
 
 def safe_min_max(series: pd.Series, fallback=(0.0, 1.0)):
     s = series.dropna()
@@ -491,9 +531,21 @@ def safe_min_max(series: pd.Series, fallback=(0.0, 1.0)):
         hi = lo + 1e-6
     return lo, hi
 
+
+# --------------------------------------------------------------------------
+# Load the dataset
+# --------------------------------------------------------------------------
 if not CSV_PATH.exists():
-    st.error("Data file not found. Please upload or create components_data.csv")
-    st.stop()
+    st.error(
+        f"Data file `{CSV_PATH.name}` was not found in the application folder.\n\n"
+        "Create a CSV file with this name (see the recommended schema), "
+        "or upload one below for a one-off preview."
+    )
+    uploaded = st.file_uploader("Upload a CSV file", type=["csv"])
+    if uploaded is None:
+        st.stop()
+    df_raw = pd.read_csv(uploaded)
+    df_raw.columns = [c.strip() for c in df_raw.columns]
 else:
     df_raw = load_data(CSV_PATH, CSV_PATH.stat().st_mtime)
 
@@ -503,40 +555,30 @@ if "quick_category" not in st.session_state:
     st.session_state["quick_category"] = None
 
 # --------------------------------------------------------------------------
-# Top bar + Hero section with layout and glowing image
+# Top bar + Hero banner
 # --------------------------------------------------------------------------
 st.markdown(
-    """
-<div class="rf-topbar">
-<div class="rf-logo"><span class="dot">◆</span> RF&nbsp;&amp;&nbsp;MICROWAVE&nbsp;CATALOG</div>
-<div class="rf-nav">
-<span>Amplifiers</span><span>RF Components</span>
-<span>Converters</span><span>Support</span>
-</div>
-</div>
-<div class="rf-hero">
-<!-- תשתית האנימציה של הזרם -->
-<div class="rf-trace-container">
-<div class="rf-trace" style="top: 25%;">
-<div class="rf-signal" style="animation-delay: 0s;"></div>
-</div>
-<div class="rf-trace" style="top: 75%;">
-<div class="rf-signal" style="animation-delay: 1.7s;"></div>
-</div>
-</div>
-<!-- פריסת התוכן: טקסט משמאל, תמונה זוהרת מימין -->
-<div class="rf-hero-content">
-<div class="rf-hero-text">
-<h1>Find the Right Component, Faster</h1>
-<p>Search our full parametric catalog of RF and electronic components by part number, specification or category.</p>
-</div>
-<div>
-<!-- תמונת הפילטר מה-GitHub שלך עם האפקט הזוהר -->
-<img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
-</div>
-</div>
-</div>
-    """,
+    html_block(
+        """
+        <div class="rf-topbar">
+        <div class="rf-logo"><span class="dot">◆</span> [COMPANY NAME]</div>
+        <div class="rf-nav">
+        <span>FILTERS</span><span>DATA SHEETS</span><span>NEWS/PRESS</span><span>ONLINE ORDERS</span>
+        </div>
+        </div>
+        <div class="rf-hero">
+        <div class="rf-hero-content">
+        <div class="rf-hero-text">
+        <h1>ACCELERATING INNOVATION</h1>
+        <p>Advanced Electronic Components and Interconnect, Sensing, Control & Antenna Solutions.</p>
+        </div>
+        <div class="rf-hero-image">
+        <img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
+        </div>
+        </div>
+        </div>
+        """
+    ),
     unsafe_allow_html=True,
 )
 
@@ -586,8 +628,6 @@ if st.sidebar.button("↺ Reset all filters", use_container_width=True):
         if key.startswith("filt_"):
             del st.session_state[key]
     st.session_state["quick_category"] = None
-    if "part" in st.query_params:
-        del st.query_params["part"]
     st.rerun()
 
 st.sidebar.markdown("<div class='sidebar-section-title'>Classification</div>", unsafe_allow_html=True)
@@ -597,6 +637,12 @@ if "Category" in df.columns:
     selected_categories = st.sidebar.multiselect("Category", options=categories, key="filt_category")
 else:
     selected_categories = []
+
+if "Manufacturer" in df.columns:
+    manufacturers = sorted(df["Manufacturer"].dropna().unique().tolist())
+    selected_manufacturers = st.sidebar.multiselect("Manufacturer", options=manufacturers, key="filt_manufacturer")
+else:
+    selected_manufacturers = []
 
 if "Package" in df.columns:
     packages = sorted(df["Package"].dropna().unique().tolist())
@@ -650,7 +696,7 @@ if active_numeric_cols:
 filtered = df.copy()
 
 if hero_search:
-    text_cols = [c for c in ["Part_Number", "Description", "Drop_in_Replacement", "Applications"] if c in filtered.columns]
+    text_cols = [c for c in ["Part_Number", "Description"] if c in filtered.columns]
     if text_cols:
         mask = pd.Series(False, index=filtered.index)
         for c in text_cols:
@@ -662,6 +708,9 @@ if st.session_state["quick_category"] and "Category" in filtered.columns:
 
 if selected_categories:
     filtered = filtered[filtered["Category"].isin(selected_categories)]
+
+if selected_manufacturers:
+    filtered = filtered[filtered["Manufacturer"].isin(selected_manufacturers)]
 
 if selected_packages:
     filtered = filtered[filtered["Package"].isin(selected_packages)]
@@ -682,11 +731,8 @@ for col, (lo_sel, hi_sel) in numeric_selected_ranges.items():
     filtered = filtered[filtered[col].isna() | filtered[col].between(lo_sel, hi_sel)]
 
 # --------------------------------------------------------------------------
-# Determine Product Details logic (SEO / URL integration)
+# Summary metrics
 # --------------------------------------------------------------------------
-part_to_display = None
-
-# We must render the dataframe *before* handling the click logic.
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Total Parts", len(df))
 m2.metric("Matching Results", len(filtered))
@@ -701,18 +747,30 @@ st.subheader("Search Results")
 
 if filtered.empty:
     st.warning("No components match the current filters. Try widening the ranges or clearing filters.")
-    event = None
 else:
     display_df = filtered.copy()
     if "In_Stock" in display_df.columns:
         display_df["Availability"] = display_df["In_Stock"].map({True: "✅ In Stock", False: "❌ Out of Stock"})
 
     column_order = [
-        c for c in [
-            "Part_Number", "Category", "Description", FREQ_MIN_COL, FREQ_MAX_COL,
-            "Gain_dB", "NF_dB", "P1dB_dBm", "OIP3_dBm", "Package",
-            "Price_USD", "Availability", "Stock_Qty"
-        ] if c in display_df.columns
+        c
+        for c in [
+            "Part_Number",
+            "Category",
+            "Manufacturer",
+            "Description",
+            FREQ_MIN_COL,
+            FREQ_MAX_COL,
+            "Gain_dB",
+            "NF_dB",
+            "P1dB_dBm",
+            "OIP3_dBm",
+            "Package",
+            "Price_USD",
+            "Availability",
+            "Stock_Qty",
+        ]
+        if c in display_df.columns
     ]
     remaining_cols = [c for c in display_df.columns if c not in column_order and c != "In_Stock"]
     column_order += remaining_cols
@@ -739,89 +797,84 @@ else:
             use_container_width=True,
         )
     with hint_col:
-        st.caption("Click any row in the table above to generate its unique URL and view full specifications.")
+        st.caption("Click any row in the table above to open its full parametric datasheet below.")
 
-# Figure out which part to display based on table click OR URL
-if event and event.selection.rows:
-    sel_idx = filtered.index[event.selection.rows[0]]
-    part_to_display = filtered.loc[sel_idx]
-    st.query_params["part"] = part_to_display.get("Part_Number", "")
-elif url_part:
-    matching_parts = df[df["Part_Number"].astype(str).str.casefold() == url_part.casefold()]
-    if not matching_parts.empty:
-        part_to_display = matching_parts.iloc[0]
+    # ----------------------------------------------------------------
+    # Product Details Card
+    # ----------------------------------------------------------------
+    st.markdown("###  ")
+    st.subheader("Product Details")
 
-# ----------------------------------------------------------------
-# Product Details Card (SEO HTML output)
-# ----------------------------------------------------------------
-st.markdown("###  ")
-st.subheader("Product Details")
+    selected_rows = event.selection.rows if event is not None else []
 
-if part_to_display is None:
-    st.info("Select a component from the table above to view its full specifications.")
-else:
-    st.markdown("<div class='detail-card'>", unsafe_allow_html=True)
+    if not selected_rows:
+        st.info("Select a component from the table above to view its full specifications.")
+    else:
+        sel_idx = filtered.index[selected_rows[0]]
+        part = filtered.loc[sel_idx]
 
-    header_col, badge_col = st.columns([4, 1])
-    with header_col:
-        title = part_to_display.get("Part_Number", "Component")
-        desc = part_to_display.get("Description", "")
-        cat = part_to_display.get("Category", "")
-        sub_line = " · ".join([v for v in [cat, desc] if v])
-        
-        st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
-        if sub_line:
-            st.markdown(f"<div class='detail-sub'>{sub_line}</div>", unsafe_allow_html=True)
-            
-    with badge_col:
-        if part_to_display.get("In_Stock", True):
-            st.markdown("<span class='stock-pill-in'>✅ IN STOCK</span>", unsafe_allow_html=True)
-        else:
-            st.markdown("<span class='stock-pill-out'>❌ OUT OF STOCK</span>", unsafe_allow_html=True)
+        st.markdown("<div class='detail-card'>", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        header_col, badge_col = st.columns([4, 1])
+        with header_col:
+            title = part.get("Part_Number", "Component")
+            desc = part.get("Description", "")
+            manuf = part.get("Manufacturer", "")
+            sub_line = " · ".join([v for v in [manuf, desc] if v])
+            st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
+            if sub_line:
+                st.markdown(f"<div class='detail-sub'>{sub_line}</div>", unsafe_allow_html=True)
+        with badge_col:
+            if part.get("In_Stock", True):
+                st.markdown("<span class='stock-pill-in'>✅ IN STOCK</span>", unsafe_allow_html=True)
+            else:
+                st.markdown("<span class='stock-pill-out'>❌ OUT OF STOCK</span>", unsafe_allow_html=True)
 
-    # Automatically skip internal columns and display the rest cleanly
-    skip_cols = {"In_Stock", "Part_Number", "Description", "Datasheet_URL", "Category"}
-    items = [(k, v) for k, v in part_to_display.items() if k not in skip_cols and str(v).strip() not in ["nan", ""]]
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    n_cols = 4
-    spec_cols = st.columns(n_cols)
-    for i, (key, value) in enumerate(items):
-        display_value = "—" if pd.isna(value) else str(value)
-        col = spec_cols[i % n_cols]
-        col.markdown(
-            f"""
-            <div class='spec-label'>{key.replace('_', ' ')}</div>
-            <div class='spec-value'>{display_value}</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        skip_cols = {"In_Stock", "Part_Number", "Description", "Manufacturer", "Datasheet_URL"}
+        items = [(k, v) for k, v in part.items() if k not in skip_cols]
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        n_cols = 4
+        spec_cols = st.columns(n_cols)
+        for i, (key, value) in enumerate(items):
+            display_value = "—" if (pd.isna(value) or value == "") else str(value)
+            col = spec_cols[i % n_cols]
+            col.markdown(
+                html_block(
+                    f"""
+                    <div class='spec-label'>{key.replace('_', ' ')}</div>
+                    <div class='spec-value'>{display_value}</div>
+                    """
+                ),
+                unsafe_allow_html=True,
+            )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with action_col1:
-        datasheet_url = part_to_display.get("Datasheet_URL", "")
-        if isinstance(datasheet_url, str) and datasheet_url.startswith("http"):
-            st.link_button("📄 Open Datasheet", datasheet_url, use_container_width=True)
-        else:
-            st.button("📄 Datasheet Unavailable", disabled=True, use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
 
-    with action_col2:
-        single_buffer = io.StringIO()
-        pd.DataFrame([part_to_display.drop(labels=["In_Stock"], errors="ignore")]).to_csv(single_buffer, index=False)
-        st.download_button(
-            label="⬇ Export This Part (CSV)",
-            data=single_buffer.getvalue(),
-            file_name=f"{part_to_display.get('Part_Number', 'component')}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+        with action_col1:
+            datasheet_url = part.get("Datasheet_URL", "")
+            if isinstance(datasheet_url, str) and datasheet_url.startswith("http"):
+                st.link_button("📄 Open Datasheet", datasheet_url, use_container_width=True)
+            else:
+                st.button("📄 Datasheet Unavailable", disabled=True, use_container_width=True)
+
+        with action_col2:
+            single_buffer = io.StringIO()
+            pd.DataFrame([part.drop(labels=["In_Stock"], errors="ignore")]).to_csv(single_buffer, index=False)
+            st.download_button(
+                label="⬇ Export This Part (CSV)",
+                data=single_buffer.getvalue(),
+                file_name=f"{part.get('Part_Number', 'component')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 st.markdown("---")
 st.caption(
-    f"Generic Industry Standard RF Components Catalog. Data source: `{CSV_PATH.name}`"
+    f"Data source: `{CSV_PATH.name}` — update this file to change stock levels, pricing or specs. "
+    "The app reloads automatically when the file changes."
 )
