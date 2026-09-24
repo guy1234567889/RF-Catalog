@@ -2,7 +2,7 @@
 RF & Electronic Components Catalog
 -----------------------------------
 A Streamlit application styled after industrial RF/electronics catalog
-sites (Analog Devices / Kyocera AVX): deep-blue page background, white
+sites (Kyocera AVX style): deep-blue page background, white
 content cards with navy text, a dark hero banner with animated RF-trace
 background and a glowing product image, and category tiles.
 
@@ -21,17 +21,35 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+CSV_PATH = Path("components_data.csv")
+
+# ==========================================
+# 1. SEO & URL ROUTING (Runs before page config)
+# ==========================================
+query_params = st.query_params
+url_part = query_params.get("part", None)
+page_title = "RF & Electronic Components Catalog"
+
+# If a specific part is requested in the URL, create an SEO-optimized title for Google
+if url_part and CSV_PATH.exists():
+    try:
+        temp_df = pd.read_csv(CSV_PATH)
+        match = temp_df[temp_df["Part_Number"].astype(str).str.casefold() == url_part.casefold()]
+        if not match.empty:
+            cat = match.iloc[0].get("Category", "Component")
+            page_title = f"{url_part} | {cat} | RF Catalog"
+    except Exception:
+        pass
+
 # --------------------------------------------------------------------------
 # Page configuration
 # --------------------------------------------------------------------------
 st.set_page_config(
-    page_title="RF & Components Catalog",
+    page_title=page_title,
     page_icon="📡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-CSV_PATH = Path("components_data.csv")
 
 NUMERIC_RANGE_COLUMNS = {
     "Gain_dB": "Gain [dB]",
@@ -46,7 +64,6 @@ FREQ_MIN_COL = "Frequency_Min_GHz"
 FREQ_MAX_COL = "Frequency_Max_GHz"
 
 # Quick-browse category tiles shown below the hero section.
-# `match` is a case-insensitive substring matched against the Category column.
 QUICK_CATEGORIES = [
     {"icon": "📶", "label": "Amplifiers", "match": "amplifier"},
     {"icon": "🔀", "label": "Mixers", "match": "mixer"},
@@ -113,8 +130,7 @@ st.markdown(
             overflow-x: hidden;
         }}
 
-        /* Hide Streamlit's own default header completely, and remove the
-           space it used to reserve so nothing overlaps our custom header. */
+        /* Hide Streamlit's own default header completely */
         header[data-testid="stHeader"] {{
             display: none !important;
         }}
@@ -272,7 +288,6 @@ st.markdown(
             box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.3);
         }}
 
-        /* "Browse by Category" label sits directly on the blue background */
         .browse-label {{
             text-align: center;
             color: #FFFFFF !important;
@@ -292,9 +307,6 @@ st.markdown(
             font-weight: 700 !important;
             padding: 18px 4px !important;
         }}
-        /* Universal descendant selector (not just p/div/span) so the text
-           stays navy no matter how deep the browser nests the label markup
-           — this is what was failing specifically on mobile browsers. */
         div[data-testid="column"] .stButton > button,
         div[data-testid="column"] .stButton > button * {{
             color: {PRIMARY_BLUE} !important;
@@ -392,7 +404,6 @@ st.markdown(
             font-weight: 800 !important;
         }}
 
-        /* Section headings that sit directly on the blue background */
         h2, h3 {{
             color: #FFFFFF !important;
         }}
@@ -405,7 +416,6 @@ st.markdown(
             max-width: 100%;
         }}
 
-        /* ---- Active filter chip ---- */
         .active-chip {{
             display: inline-block;
             background-color: {CARD_WHITE};
@@ -499,12 +509,16 @@ st.markdown(
 
 
 # --------------------------------------------------------------------------
-# Data loading
+# Data loading & Strict Brand Scrubber
 # --------------------------------------------------------------------------
 @st.cache_data(show_spinner="Loading component database...")
 def load_data(path: Path, mtime: float) -> pd.DataFrame:
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]
+
+    # STRICT LEGAL RULE: Nuke the manufacturer column completely if it exists
+    if "Manufacturer" in df.columns:
+        df = df.drop(columns=["Manufacturer"], errors="ignore")
 
     for col in list(NUMERIC_RANGE_COLUMNS.keys()) + [FREQ_MIN_COL, FREQ_MAX_COL, "Stock_Qty"]:
         if col in df.columns:
@@ -515,7 +529,8 @@ def load_data(path: Path, mtime: float) -> pd.DataFrame:
     else:
         df["In_Stock"] = True
 
-    for col in ["Part_Number", "Category", "Manufacturer", "Description", "Package"]:
+    # Note: "Manufacturer" is removed from string casting list here
+    for col in ["Part_Number", "Category", "Description", "Package", "Applications", "Drop_in_Replacement"]:
         if col in df.columns:
             df[col] = df[col].astype(str).fillna("")
 
@@ -546,6 +561,8 @@ if not CSV_PATH.exists():
         st.stop()
     df_raw = pd.read_csv(uploaded)
     df_raw.columns = [c.strip() for c in df_raw.columns]
+    if "Manufacturer" in df_raw.columns:
+        df_raw = df_raw.drop(columns=["Manufacturer"], errors="ignore")
 else:
     df_raw = load_data(CSV_PATH, CSV_PATH.stat().st_mtime)
 
@@ -628,6 +645,8 @@ if st.sidebar.button("↺ Reset all filters", use_container_width=True):
         if key.startswith("filt_"):
             del st.session_state[key]
     st.session_state["quick_category"] = None
+    if "part" in st.query_params:
+        del st.query_params["part"]
     st.rerun()
 
 st.sidebar.markdown("<div class='sidebar-section-title'>Classification</div>", unsafe_allow_html=True)
@@ -637,12 +656,6 @@ if "Category" in df.columns:
     selected_categories = st.sidebar.multiselect("Category", options=categories, key="filt_category")
 else:
     selected_categories = []
-
-if "Manufacturer" in df.columns:
-    manufacturers = sorted(df["Manufacturer"].dropna().unique().tolist())
-    selected_manufacturers = st.sidebar.multiselect("Manufacturer", options=manufacturers, key="filt_manufacturer")
-else:
-    selected_manufacturers = []
 
 if "Package" in df.columns:
     packages = sorted(df["Package"].dropna().unique().tolist())
@@ -696,7 +709,7 @@ if active_numeric_cols:
 filtered = df.copy()
 
 if hero_search:
-    text_cols = [c for c in ["Part_Number", "Description"] if c in filtered.columns]
+    text_cols = [c for c in ["Part_Number", "Description", "Drop_in_Replacement", "Applications"] if c in filtered.columns]
     if text_cols:
         mask = pd.Series(False, index=filtered.index)
         for c in text_cols:
@@ -708,9 +721,6 @@ if st.session_state["quick_category"] and "Category" in filtered.columns:
 
 if selected_categories:
     filtered = filtered[filtered["Category"].isin(selected_categories)]
-
-if selected_manufacturers:
-    filtered = filtered[filtered["Manufacturer"].isin(selected_manufacturers)]
 
 if selected_packages:
     filtered = filtered[filtered["Package"].isin(selected_packages)]
@@ -731,7 +741,12 @@ for col, (lo_sel, hi_sel) in numeric_selected_ranges.items():
     filtered = filtered[filtered[col].isna() | filtered[col].between(lo_sel, hi_sel)]
 
 # --------------------------------------------------------------------------
-# Summary metrics
+# Determine Product Details logic (SEO / URL integration)
+# --------------------------------------------------------------------------
+part_to_display = None
+
+# --------------------------------------------------------------------------
+# Summary metrics & Main Table
 # --------------------------------------------------------------------------
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Total Parts", len(df))
@@ -747,30 +762,18 @@ st.subheader("Search Results")
 
 if filtered.empty:
     st.warning("No components match the current filters. Try widening the ranges or clearing filters.")
+    event = None
 else:
     display_df = filtered.copy()
     if "In_Stock" in display_df.columns:
         display_df["Availability"] = display_df["In_Stock"].map({True: "✅ In Stock", False: "❌ Out of Stock"})
 
     column_order = [
-        c
-        for c in [
-            "Part_Number",
-            "Category",
-            "Manufacturer",
-            "Description",
-            FREQ_MIN_COL,
-            FREQ_MAX_COL,
-            "Gain_dB",
-            "NF_dB",
-            "P1dB_dBm",
-            "OIP3_dBm",
-            "Package",
-            "Price_USD",
-            "Availability",
-            "Stock_Qty",
-        ]
-        if c in display_df.columns
+        c for c in [
+            "Part_Number", "Category", "Description", FREQ_MIN_COL, FREQ_MAX_COL,
+            "Gain_dB", "NF_dB", "P1dB_dBm", "OIP3_dBm", "Package",
+            "Price_USD", "Availability", "Stock_Qty"
+        ] if c in display_df.columns
     ]
     remaining_cols = [c for c in display_df.columns if c not in column_order and c != "In_Stock"]
     column_order += remaining_cols
@@ -797,84 +800,93 @@ else:
             use_container_width=True,
         )
     with hint_col:
-        st.caption("Click any row in the table above to open its full parametric datasheet below.")
+        st.caption("Click any row in the table above to open its full parametric datasheet below and generate its unique link.")
 
-    # ----------------------------------------------------------------
-    # Product Details Card
-    # ----------------------------------------------------------------
-    st.markdown("###  ")
-    st.subheader("Product Details")
+# Figure out which part to display based on table click OR URL
+if event and event.selection.rows:
+    sel_idx = filtered.index[event.selection.rows[0]]
+    part_to_display = filtered.loc[sel_idx]
+    st.query_params["part"] = part_to_display.get("Part_Number", "")
+elif url_part:
+    matching_parts = df[df["Part_Number"].astype(str).str.casefold() == url_part.casefold()]
+    if not matching_parts.empty:
+        part_to_display = matching_parts.iloc[0]
 
-    selected_rows = event.selection.rows if event is not None else []
+# ----------------------------------------------------------------
+# Product Details Card
+# ----------------------------------------------------------------
+st.markdown("###  ")
+st.subheader("Product Details")
 
-    if not selected_rows:
-        st.info("Select a component from the table above to view its full specifications.")
-    else:
-        sel_idx = filtered.index[selected_rows[0]]
-        part = filtered.loc[sel_idx]
+if part_to_display is None:
+    st.info("Select a component from the table above to view its full specifications.")
+else:
+    st.markdown("<div class='detail-card'>", unsafe_allow_html=True)
 
-        st.markdown("<div class='detail-card'>", unsafe_allow_html=True)
+    header_col, badge_col = st.columns([4, 1])
+    with header_col:
+        title = part_to_display.get("Part_Number", "Component")
+        desc = part_to_display.get("Description", "")
+        cat = part_to_display.get("Category", "")
+        
+        # Sub line no longer uses Manufacturer, only Category and Description
+        sub_line = " · ".join([v for v in [cat, desc] if v])
+        
+        st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
+        if sub_line:
+            st.markdown(f"<div class='detail-sub'>{sub_line}</div>", unsafe_allow_html=True)
+            
+    with badge_col:
+        if part_to_display.get("In_Stock", True):
+            st.markdown("<span class='stock-pill-in'>✅ IN STOCK</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span class='stock-pill-out'>❌ OUT OF STOCK</span>", unsafe_allow_html=True)
 
-        header_col, badge_col = st.columns([4, 1])
-        with header_col:
-            title = part.get("Part_Number", "Component")
-            desc = part.get("Description", "")
-            manuf = part.get("Manufacturer", "")
-            sub_line = " · ".join([v for v in [manuf, desc] if v])
-            st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
-            if sub_line:
-                st.markdown(f"<div class='detail-sub'>{sub_line}</div>", unsafe_allow_html=True)
-        with badge_col:
-            if part.get("In_Stock", True):
-                st.markdown("<span class='stock-pill-in'>✅ IN STOCK</span>", unsafe_allow_html=True)
-            else:
-                st.markdown("<span class='stock-pill-out'>❌ OUT OF STOCK</span>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    # Automatically skip internal columns and display the rest cleanly
+    skip_cols = {"In_Stock", "Part_Number", "Description", "Datasheet_URL", "Category"}
+    items = [(k, v) for k, v in part_to_display.items() if k not in skip_cols and str(v).strip() not in ["nan", ""]]
 
-        skip_cols = {"In_Stock", "Part_Number", "Description", "Manufacturer", "Datasheet_URL"}
-        items = [(k, v) for k, v in part.items() if k not in skip_cols]
+    n_cols = 4
+    spec_cols = st.columns(n_cols)
+    for i, (key, value) in enumerate(items):
+        display_value = "—" if (pd.isna(value) or value == "") else str(value)
+        col = spec_cols[i % n_cols]
+        col.markdown(
+            html_block(
+                f"""
+                <div class='spec-label'>{key.replace('_', ' ')}</div>
+                <div class='spec-value'>{display_value}</div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
 
-        n_cols = 4
-        spec_cols = st.columns(n_cols)
-        for i, (key, value) in enumerate(items):
-            display_value = "—" if (pd.isna(value) or value == "") else str(value)
-            col = spec_cols[i % n_cols]
-            col.markdown(
-                html_block(
-                    f"""
-                    <div class='spec-label'>{key.replace('_', ' ')}</div>
-                    <div class='spec-value'>{display_value}</div>
-                    """
-                ),
-                unsafe_allow_html=True,
-            )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        action_col1, action_col2, _ = st.columns([1.4, 1.4, 3])
+    with action_col1:
+        datasheet_url = part_to_display.get("Datasheet_URL", "")
+        if isinstance(datasheet_url, str) and datasheet_url.startswith("http"):
+            st.link_button("📄 Open Datasheet", datasheet_url, use_container_width=True)
+        else:
+            st.button("📄 Datasheet Unavailable", disabled=True, use_container_width=True)
 
-        with action_col1:
-            datasheet_url = part.get("Datasheet_URL", "")
-            if isinstance(datasheet_url, str) and datasheet_url.startswith("http"):
-                st.link_button("📄 Open Datasheet", datasheet_url, use_container_width=True)
-            else:
-                st.button("📄 Datasheet Unavailable", disabled=True, use_container_width=True)
-
-        with action_col2:
-            single_buffer = io.StringIO()
-            pd.DataFrame([part.drop(labels=["In_Stock"], errors="ignore")]).to_csv(single_buffer, index=False)
-            st.download_button(
-                label="⬇ Export This Part (CSV)",
-                data=single_buffer.getvalue(),
-                file_name=f"{part.get('Part_Number', 'component')}.csv",
-                mime="text/csv",
-                use_container_width=True,
-            )
+    with action_col2:
+        single_buffer = io.StringIO()
+        pd.DataFrame([part_to_display.drop(labels=["In_Stock"], errors="ignore")]).to_csv(single_buffer, index=False)
+        st.download_button(
+            label="⬇ Export This Part (CSV)",
+            data=single_buffer.getvalue(),
+            file_name=f"{part_to_display.get('Part_Number', 'component')}.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
 
 st.markdown("---")
 st.caption(
-    f"Data source: `{CSV_PATH.name}` — update this file to change stock levels, pricing or specs. "
-    "The app reloads automatically when the file changes."
+    f"Generic Industry Standard RF Components Catalog. Data source: `{CSV_PATH.name}`"
 )
