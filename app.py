@@ -1,15 +1,11 @@
 """
 RF & Electronic Components Catalog
 -----------------------------------
-A Streamlit application styled after industrial RF/electronics catalog
-sites (Kyocera AVX style): deep-blue page background, white
-content cards with navy text, a dark hero banner with animated RF-trace
-background and a glowing product image, and category tiles.
+A Streamlit application styled EXACTLY after industrial RF/electronics catalog
+sites (Kyocera AVX style): Black top bar, cinematic full-width centered hero 
+banner with animated background, and white content cards.
 
-Data is loaded from an external CSV file (default: components_data.csv),
-so the catalog (stock, pricing, specs) can be updated without touching
-this code.
-
+Data is loaded from an external CSV file (default: components_data.csv).
 Run:
     streamlit run app.py
 """
@@ -75,24 +71,20 @@ QUICK_CATEGORIES = [
 
 
 def html_block(s: str) -> str:
-    """Dedent a triple-quoted HTML/CSS block so no line has leading
-    whitespace. Indentation inside a string passed to
-    st.markdown(..., unsafe_allow_html=True) can make Streamlit's
-    Markdown parser treat the block as a literal code block instead of
-    rendering the HTML — this neutralizes that."""
+    """Dedent a triple-quoted HTML/CSS block to prevent Streamlit black-box rendering."""
     return textwrap.dedent(s).strip("\n")
 
 
 # --------------------------------------------------------------------------
-# Theme / styling — blue page background, white cards, navy text
+# Theme / styling
 # --------------------------------------------------------------------------
-BG_APP = "#0B4C8C"           # overall page background (Analog-style blue)
-TOPBAR_BLUE = "#00284D"      # darker navy for the top bar / hero
-PRIMARY_BLUE = "#00355F"     # navy text used inside white cards
-ACCENT_BLUE = "#0072CE"      # bright signal blue — buttons, links, highlights
-ACCENT_BLUE_LIGHT = "#E6F2FC"  # pale blue tint for hover states
+BG_APP = "#0B4C8C"           
+TOPBAR_BG = "#111111"        # Kyocera Black
+PRIMARY_BLUE = "#00355F"     
+ACCENT_BLUE = "#0072CE"      
+ACCENT_BLUE_LIGHT = "#E6F2FC"  
 BORDER = "#D6DEE6"
-TEXT_DARK = "#1A2733"        # dark text used inside white cards
+TEXT_DARK = "#1A2733"        
 CARD_WHITE = "#FFFFFF"
 
 st.markdown(
@@ -104,10 +96,6 @@ st.markdown(
             max-width: 100vw;
             color-scheme: light !important;
         }}
-        /* Some mobile browsers (notably iOS Safari) auto-darken native
-           form controls like <button> based on the OS dark-mode setting,
-           even when the page itself is styled light. Forcing color-scheme
-           to "light" on the buttons themselves stops that auto-adjustment. */
         button {{
             color-scheme: light !important;
         }}
@@ -141,134 +129,117 @@ st.markdown(
             display: none !important;
         }}
 
-        /* ---- Top bar ---- */
+        /* ---- EXACT Kyocera Top bar (Black) ---- */
         .rf-topbar {{
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
-            background-color: {TOPBAR_BLUE};
-            padding: 14px 24px;
-            border-radius: 8px 8px 0 0;
+            background-color: {TOPBAR_BG};
+            padding: 12px 30px;
             width: 100%;
+            border-bottom: 2px solid {ACCENT_BLUE};
         }}
         .rf-logo {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
             color: #FFFFFF !important;
-            font-size: 1.2rem;
+            font-size: 1.4rem;
             font-weight: 800;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             white-space: nowrap;
-        }}
-        .rf-logo span.dot {{
-            color: {ACCENT_BLUE};
-            font-size: 1.5rem;
-            line-height: 0;
         }}
         .rf-nav {{
             display: flex;
             flex-wrap: wrap;
-            gap: 22px;
-            color: #CFE4F7 !important;
+            gap: 28px;
+        }}
+        .rf-nav span {{
+            color: #FFFFFF !important;
             font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s;
         }}
-        .rf-nav span {{
-            color: #CFE4F7 !important;
-            cursor: default;
+        .rf-nav span:hover {{
+            color: {ACCENT_BLUE} !important;
         }}
 
-        /* ---- Hero banner: dark gradient, animated RF trace background,
-               two-column layout (text left / glowing image right) ---- */
+        /* ---- EXACT Kyocera Hero banner (Full width, centered, animated tech background) ---- */
         .rf-hero {{
             position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, {TOPBAR_BLUE} 0%, {BG_APP} 65%, {ACCENT_BLUE} 160%);
-            border-radius: 0 0 10px 10px;
-            padding: 40px 34px;
-            margin-bottom: 1.6rem;
+            background-color: #05264c;
+            background-image: url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2000&q=80');
+            background-size: cover;
+            background-position: center;
+            padding: 120px 20px;
             width: 100%;
+            text-align: center;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            border-radius: 0 0 8px 8px;
         }}
-        /* Animated RF trace / signal-line background */
+        /* Deep blue overlay tint over the image */
         .rf-hero::before {{
-            content: "";
+            content: '';
             position: absolute;
-            inset: -50%;
-            background-image:
-                repeating-linear-gradient(45deg,
-                    rgba(255, 255, 255, 0.06) 0px,
-                    rgba(255, 255, 255, 0.06) 2px,
-                    transparent 2px,
-                    transparent 42px),
-                repeating-linear-gradient(-45deg,
-                    rgba(0, 200, 255, 0.08) 0px,
-                    rgba(0, 200, 255, 0.08) 1px,
-                    transparent 1px,
-                    transparent 60px);
-            animation: rf-trace-move 9s linear infinite;
-            pointer-events: none;
-            z-index: 0;
-        }}
-        @keyframes rf-trace-move {{
-            0%   {{ transform: translate(0, 0); }}
-            100% {{ transform: translate(120px, 120px); }}
-        }}
-        .rf-hero-content {{
-            position: relative;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(8, 35, 75, 0.78);
             z-index: 1;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
         }}
-        .rf-hero-text {{
-            flex: 1 1 420px;
-            min-width: 260px;
+        
+        /* "Moving Video" simulation: Animated signal traces moving across the background */
+        .rf-trace-container {{
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 2;
         }}
-        .rf-hero-text h1 {{
-            color: #FFFFFF !important;
-            font-size: 2.4rem;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            line-height: 1.15;
-            margin-bottom: 12px;
+        .rf-trace {{
+            position: absolute;
+            left: 0; width: 100%; height: 1px;
+            background: rgba(255, 255, 255, 0.05);
         }}
-        .rf-hero-text p {{
-            color: #CFE4F7 !important;
-            font-size: 1.05rem;
-            max-width: 560px;
-            margin-bottom: 0;
+        .rf-signal {{
+            position: absolute;
+            top: -1px; left: -200px;
+            width: 150px; height: 3px;
+            background: #00d2ff;
+            box-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff;
+            border-radius: 10px;
+            animation: rf-flow 4s linear infinite;
         }}
-        .rf-hero-image {{
-            flex: 1 1 220px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-width: 180px;
+        @keyframes rf-flow {{
+            0% {{ left: -10%; opacity: 0; }}
+            10% {{ opacity: 1; }}
+            90% {{ opacity: 1; }}
+            100% {{ left: 110%; opacity: 0; }}
         }}
 
-        /* ---- Glowing product image ---- */
-        .glowing-filter {{
-            max-width: 260px;
-            width: 100%;
-            height: auto;
-            animation: rf-glow-pulse 2.4s ease-in-out infinite;
+        .rf-hero-content {{
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }}
-        @keyframes rf-glow-pulse {{
-            0%, 100% {{
-                filter: drop-shadow(0 0 8px rgba(0, 200, 255, 0.45))
-                        drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
-            }}
-            50% {{
-                filter: drop-shadow(0 0 28px rgba(0, 200, 255, 0.9))
-                        drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-            }}
+        .rf-hero-content h1 {{
+            color: #FFFFFF !important;
+            font-size: 4.2rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            line-height: 1.1;
+            margin-bottom: 15px;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }}
+        .rf-hero-content p {{
+            color: #E6F2FC !important;
+            font-size: 1.3rem;
+            font-weight: 400;
+            max-width: 900px;
+            margin: 0 auto;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }}
 
         /* Search input styling */
@@ -279,7 +250,7 @@ st.markdown(
             font-size: 1.02rem !important;
             background-color: #FFFFFF !important;
             color: {TEXT_DARK} !important;
-            box-shadow: 0 2px 8px rgba(0, 53, 95, 0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }}
         div[data-testid="stTextInput"] input::placeholder {{
             color: #8A97A5 !important;
@@ -488,11 +459,10 @@ st.markdown(
         /* ---- Mobile responsiveness ---- */
         @media (max-width: 640px) {{
             .rf-nav {{ display: none; }}
-            .rf-logo {{ font-size: 1rem; }}
-            .rf-hero {{ padding: 26px 18px; }}
-            .rf-hero-text h1 {{ font-size: 1.6rem; }}
-            .rf-hero-text p {{ font-size: 0.9rem; }}
-            .glowing-filter {{ max-width: 160px; }}
+            .rf-logo {{ font-size: 1.1rem; }}
+            .rf-hero {{ padding: 60px 15px; }}
+            .rf-hero-content h1 {{ font-size: 2.2rem; }}
+            .rf-hero-content p {{ font-size: 1rem; }}
             .main .block-container {{
                 padding-left: 0.6rem;
                 padding-right: 0.6rem;
@@ -529,7 +499,6 @@ def load_data(path: Path, mtime: float) -> pd.DataFrame:
     else:
         df["In_Stock"] = True
 
-    # Note: "Manufacturer" is removed from string casting list here
     for col in ["Part_Number", "Category", "Description", "Package", "Applications", "Drop_in_Replacement"]:
         if col in df.columns:
             df[col] = df[col].astype(str).fillna("")
@@ -578,21 +547,26 @@ st.markdown(
     html_block(
         """
         <div class="rf-topbar">
-        <div class="rf-logo"><span class="dot">◆</span> [COMPANY NAME]</div>
-        <div class="rf-nav">
-        <span>FILTERS</span><span>DATA SHEETS</span><span>NEWS/PRESS</span><span>ONLINE ORDERS</span>
-        </div>
+            <div class="rf-logo">[COMPANY NAME]</div>
+            <div class="rf-nav">
+                <span>FILTERS</span>
+                <span>DATA SHEETS</span>
+                <span>NEWS/PRESS</span>
+                <span>ONLINE ORDERS</span>
+            </div>
         </div>
         <div class="rf-hero">
-        <div class="rf-hero-content">
-        <div class="rf-hero-text">
-        <h1>ACCELERATING INNOVATION</h1>
-        <p>Advanced Electronic Components and Interconnect, Sensing, Control & Antenna Solutions.</p>
-        </div>
-        <div class="rf-hero-image">
-        <img src="https://raw.githubusercontent.com/guy1234567889/RF-Catalog/main/filter.png" class="glowing-filter" alt="High-Tech RF Filter">
-        </div>
-        </div>
+            <!-- Simulated 'moving video' traces over the PCB background -->
+            <div class="rf-trace-container">
+                <div class="rf-trace" style="top: 15%;"><div class="rf-signal" style="animation-delay: 0.5s;"></div></div>
+                <div class="rf-trace" style="top: 35%;"><div class="rf-signal" style="animation-delay: 2.1s;"></div></div>
+                <div class="rf-trace" style="top: 65%;"><div class="rf-signal" style="animation-delay: 0.2s;"></div></div>
+                <div class="rf-trace" style="top: 85%;"><div class="rf-signal" style="animation-delay: 3.4s;"></div></div>
+            </div>
+            <div class="rf-hero-content">
+                <h1>ACCELERATING INNOVATION</h1>
+                <p>Advanced Electronic Components and Interconnect, Sensing, Control & Antenna Solutions</p>
+            </div>
         </div>
         """
     ),
@@ -829,7 +803,6 @@ else:
         desc = part_to_display.get("Description", "")
         cat = part_to_display.get("Category", "")
         
-        # Sub line no longer uses Manufacturer, only Category and Description
         sub_line = " · ".join([v for v in [cat, desc] if v])
         
         st.markdown(f"<div class='detail-title'>{title}</div>", unsafe_allow_html=True)
